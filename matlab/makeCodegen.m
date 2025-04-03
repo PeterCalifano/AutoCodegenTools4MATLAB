@@ -1,4 +1,9 @@
-function [] = makeCodegen(targetFcnName, args_cell, coder_config)
+function [] = makeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig)
+arguments
+    charTargetFcnName  {mustBeA(charTargetFcnName, ["char", "string"])}
+    cellInputArgs      {mustBeA(cellInputArgs, "cell")}
+    objCoderConfig     {mustBeValidCodegenConfig(objCoderConfig)} = "mex";
+end
 %% PROTOTYPE
 % [] = makeCodegen(targetFcnName, args_cell, coder_config)
 % -------------------------------------------------------------------------------------------------------------
@@ -7,26 +12,15 @@ function [] = makeCodegen(targetFcnName, args_cell, coder_config)
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
 % in1 [dim] description
-% Name1                     []
-% Name2                     []
-% Name3                     []
-% Name4                     []
-% Name5                     []
-% Name6                     []
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
-% out1 [dim] description
-% Name1                     []
-% Name2                     []
-% Name3                     []
-% Name4                     []
-% Name5                     []
-% Name6                     []
+% [-]
 % -------------------------------------------------------------------------------------------------------------
 %% CHANGELOG
-% 21-04-2024    Pietro Califano    First version. Very basic codegen call.
-% 17-06-2024    Pietro Califano    Extended capability to lib, exe, dll
-% 23-12-2024    Pietro Califano    Bug fixes due to mex config
+% 21-04-2024    Pietro Califano     First version. Very basic codegen call.
+% 17-06-2024    Pietro Califano     Extended capability to lib, exe, dll.
+% 23-12-2024    Pietro Califano     Bug fixes due to mex config.
+% 02-04-2025    Pietro Califano     Minor reworking for basic usage.
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
@@ -34,93 +28,50 @@ function [] = makeCodegen(targetFcnName, args_cell, coder_config)
 %% Future upgrades
 % [-]
 % -------------------------------------------------------------------------------------------------------------
-%% Function code
-
-% assert(strcmpi(coder_config.Name, 'MexCodeConfig'), 'Only MEX config is currently supported!')
 
 %% Coder settings
-bUSE_DEFAULT = false;
-allowedConfigTypes = ["mex", "lib", "exe", "dll"];
 
-if isstring(coder_config) || ischar(coder_config) || nargin < 3
-    bUSE_DEFAULT = true;
-    coder_config = lower(coder_config);
+if isstring(objCoderConfig) || ischar(objCoderConfig) || nargin < 3
+
+    % TODO consider to add common in one single call, and only specify those important for the specific one
+    switch lower(objCoderConfig)
+        case 'mex'
+            fprintf("\nCODER CONFIG: MEX with default configuration...\n")
+
+            objCoderConfig = coder.config('mex', 'ecoder', true);
+            objCoderConfig.TargetLang = 'C++';
+            objCoderConfig.GenerateReport = true;
+            objCoderConfig.LaunchReport = true;
+            objCoderConfig.EnableJIT = false;
+            objCoderConfig.MATLABSourceComments = true;
+
+        case 'lib'
+            fprintf("\nCODER CONFIG: LIB with default configuration...\n")
+
+            objCoderConfig = coder.config('lib', 'ecoder', true);
+            objCoderConfig.TargetLang = 'C++';
+            objCoderConfig.GenerateReport = true;
+            objCoderConfig.LaunchReport = true;
+            objCoderConfig.MATLABSourceComments = true;
+
+        case 'exe'
+            fprintf("\nCODER CONFIG: LIB with default configuration...\n")
+
+            objCoderConfig = coder.config('exe', 'ecoder', true);
+            objCoderConfig.TargetLang = 'C++';
+            objCoderConfig.GenerateReport = true;
+            objCoderConfig.LaunchReport = true;
+            objCoderConfig.MATLABSourceComments = true;
+    end
+
 end
-
-if bUSE_DEFAULT
-
-    if nargin < 3
-        % No coder config --> assume MEX
-        fprintf("No coder configuration object specified. Using default configuration...\n")
-        coder_config = coder.config('mex');
-        coder_config.TargetLang = 'C++';
-        coder_config.GenerateReport = true;
-        coder_config.LaunchReport = true;
-        coder_config.EnableJIT = false;
-        coder_config.MATLABSourceComments = true;
-
-    else
-        % Specified default name --> Use default config for specified build type
-        for configType = allowedConfigTypes
-            if strcmpi(coder_config, configType) 
-                break;
-            end
-        end
-    
-
-    if strcmpi(configType, 'mex')
-        % DEFAULT CONFIG: MEX
-        fprintf("CODER CONFIG: MEX with default configuration...\n")
-
-        coder_config = coder.config('mex', 'ecoder', true);
-        coder_config.TargetLang = 'C++';
-        coder_config.GenerateReport = true;
-        coder_config.LaunchReport = true;
-        coder_config.EnableJIT = false;
-        coder_config.MATLABSourceComments = true;
-
-    elseif strcmpi(configType, 'lib')
-        % DEFAULT CONFIG: LIB
-        fprintf("CODER CONFIG: LIB with default configuration...\n")
-
-        coder_config = coder.config('lib', 'ecoder', true);
-        coder_config.TargetLang = 'C++';
-        coder_config.GenerateReport = true;
-        coder_config.LaunchReport = true;
-        coder_config.MATLABSourceComments = true;
-
-    elseif strcmpi(configType, 'exe')
-        % DEFAULT CONFIG: EXE
-        fprintf("CODER CONFIG: EXE with default configuration...\n")
-
-        coder_config = coder.config('exe', 'ecoder', true);
-        coder_config.TargetLang = 'C++';
-        coder_config.GenerateReport = true;
-        coder_config.LaunchReport = true;
-        coder_config.MATLABSourceComments = true;
-
-    elseif strcmpi(configType, 'dll')
-        % DEFAULT CONFIG: DLL
-        fprintf("cODER CONFIG: DLL with default configuration...\n")
-
-        coder_config = coder.config('dll', 'ecoder', true);
-        coder_config.TargetLang = 'C++';
-        coder_config.GenerateReport = true;
-        coder_config.LaunchReport = true;
-        coder_config.MATLABSourceComments = true;
-
-    end
-    end
-end % END OF USE_DEFAULT
 
 % Get build type
-if not(isa(coder_config, 'coder.MexCodeConfig'))
-    buildType = lower(coder_config.OutputType);
+if not(isa(objCoderConfig, 'coder.MexCodeConfig'))
+    charBuildType = lower(objCoderConfig.OutputType);
 else
-    buildType = 'mex';
+    charBuildType = 'mex';
 end
-
-
 
 % IF PARALLEL REQUIRED
 % coder_config.EnableAutoParallelization = true;
@@ -128,24 +79,29 @@ end
 
 %% Target function details
 % Get number of outputs
-numOutputs = nargout(targetFcnName);
-fprintf('\nGenerating src or compiled code from function %s...\n', string(targetFcnName));
+numOutputs = nargout(charTargetFcnName);
+fprintf('\nGenerating src or compiled code from function %s...\n', string(charTargetFcnName));
 
 % Extract filename and add MEX indication
-[~, targetFcnName, ~] = fileparts(fullfile(targetFcnName));
-outputFcnName = strcat(targetFcnName, '_', upper(buildType));
+[~, charTargetFcnName, ~] = fileparts(fullfile(charTargetFcnName));
+outputFcnName = strcat(charTargetFcnName, '_', upper(charBuildType));
 
 % numOfInputs; % ADD ASSERT to size of args_cell from specification functions
 
 %% CODEGEN CALL
 fprintf("---------------------- CODE GENERATION EXECUTION: STARTED ---------------------- \n\n")
 % Execute code generation
-codegenCommands = {strcat(targetFcnName,'.m'), "-config", coder_config,...
-    "-args", args_cell, "-nargout", numOutputs, "-o", outputFcnName};
+codegenCommands = {strcat(charTargetFcnName,'.m'), "-config", objCoderConfig,...
+    "-args", cellInputArgs, "-nargout", numOutputs, "-o", outputFcnName};
 codegen(codegenCommands{:});
 fprintf("\n---------------------- CODE GENERATION EXECUTION: COMPLETED ----------------------\n")
 end
 
-%% LOCAL FUNCTION
+%% Validation function
+function [bValidInput] = mustBeValidCodegenConfig(inputVariable)
 
+bValidInput = mustBeA(inputVariable, ["string", "char", "coder_config"]) || ...
+    ( (isstring || ischar) && mustBeMember(inputVariable, ["mex", "lib", "exe", "dll"]) );
+
+end
 
