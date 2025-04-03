@@ -7,7 +7,7 @@ function [o_objMODEL_Sfcn] = SLX_AUTOCD_SETUPGEN(i_chModelName, ...
     i_cTargetHWname)
 arguments
     i_chModelName char
-    i_CfgParamsFile {mustBeA(i_CfgParamsFile, ["char", "configset"])} = 'SLX_AUTOCD_config.mat'
+    i_CfgParamsFile {mustBeA(i_CfgParamsFile, ["char", "Simulink.ConfigS6et"])} = 'SLX_AUTOCD_config.mat'
     i_chBuildPath char = '.'
     i_bBUILD_Sfcn logical = false
     i_bCODE_ONLY logical = false

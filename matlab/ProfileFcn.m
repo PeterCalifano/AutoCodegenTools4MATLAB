@@ -1,4 +1,3 @@
-
 function [profData] = ProfileFcn(charFcnName, varargs, options)
 arguments
     charFcnName (1,:) string {mustBeA(charFcnName, ["string", "char"])}
