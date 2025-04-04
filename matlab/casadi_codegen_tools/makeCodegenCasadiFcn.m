@@ -1,6 +1,6 @@
-function [outFileName, fullBUILD_PATH] = casadiFcnCodegen(casadiFunObj, OUTPUT_TYPE, BUILD_PATH, compilerOflag)
+function [outFileName, fullBUILD_PATH] = casadiFcnCodegen(objCasadiFcn, OUTPUT_TYPE, BUILD_PATH, compilerOflag)
     arguments
-        casadiFunObj (1,1) casadi.Function
+        objCasadiFcn (1,1) mustBeA{casadi.Function}
         OUTPUT_TYPE = 'mex'; % Default: mex file
         BUILD_PATH = '.' % Default: build in the same folder
         compilerOflag = '-O3' % Default: max optimization
@@ -67,8 +67,8 @@ elseif strcmpi(OUTPUT_TYPE, 'exe')
 end
 
 % Define filename
-outFileName = strcat(casadiFunObj.name, '_MEX');
-mainSourceName = [casadiFunObj.name, '.', EXTENSION]; % [BUILD_PATH, '/', casadiFunObj.name, '.c'];
+outFileName = strcat(objCasadiFcn.name, '_MEX');
+mainSourceName = [objCasadiFcn.name, '.', EXTENSION]; % [BUILD_PATH, '/', casadiFunObj.name, '.c'];
 
 % Get current directory absolute path
 currentDir = pwd;
@@ -82,8 +82,8 @@ end
 cd(BUILD_PATH); % Change working directory to BUILD_PATH
 
 % Generate C source code from Casadi function in BUILT_PATH
-codegenObj = CodeGenerator(casadiFunObj.name, casadiCodeGenOpts);
-codegenObj.add(casadiFunObj); % Add main file
+codegenObj = CodeGenerator(objCasadiFcn.name, casadiCodeGenOpts);
+codegenObj.add(objCasadiFcn); % Add main file
 
 if strcmpi(OUTPUT_TYPE, 'sfcn')
     codegenObj.add_include('simstruc.h'); % Add main file

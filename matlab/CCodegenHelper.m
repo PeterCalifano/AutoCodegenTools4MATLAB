@@ -21,17 +21,21 @@ classdef CCodegenHelper < handle
     % [-]
     % -------------------------------------------------------------------------------------------------------------
     properties (SetAccess = protected, GetAccess = public)
-
+        enumToolchain {mustBeMember(enumToolchain, ["matlab", "casadi"])} = "matlab";
     end
 
     methods (Access = public)
         % CONSTRUCTOR
-        function self = CCodegenHelper()
+        function self = CCodegenHelper(kwargs)
             arguments
-
+            
+            end
+            arguments
+                kwargs.enumToolchain {mustBeMember(kwargs.enumToolchain, ["matlab", "casadi"])} = "matlab";
             end
 
-
+            % Store properties
+            self.enumToolchain = kwargs.enumToolchain;
         end
 
         % GETTERS
@@ -42,7 +46,20 @@ classdef CCodegenHelper < handle
 
         function [] = makeCodegen(self)
 
+
+
+            switch self.enumToolchain
+                case "matlab"
+                    % Call matlab makeCodegen static function
+
+                case "casadi"
+                    % Call casadi codegen toolchain
+                
+                otherwise
+                    error('Invalid toolchain selected: must be "matlab" or "casadi".')
+            end
         end
+
 
     end
 
@@ -61,8 +78,8 @@ classdef CCodegenHelper < handle
                 objCoderConfig          {CCodegenHelper.mustBeValidCodegenConfig(objCoderConfig)} = "mex";
             end
             arguments 
-                kwargs.bStrictEmbedded  (1,1) logical {islogical, isscalar} = false
-                kwargs.charOutputFcnName  (1,:) string {mustBeA(kwargs.charOutputFcnName, ["char", "string"])} = charTargetFcnName
+                kwargs.bStrictEmbedded      (1,1) logical {islogical, isscalar} = false
+                kwargs.charOutputFcnName    (1,:) string {mustBeA(kwargs.charOutputFcnName, ["char", "string"])} = charTargetFcnName
             
             end
 

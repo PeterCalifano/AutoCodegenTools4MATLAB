@@ -10,28 +10,10 @@ end
 %% INPUT
 % in1 [dim] description
 % Name1                     []
-% Name2                     []
-% Name3                     []
-% Name4                     []
-% Name5                     []
-% Name6                     []
-% Name7                     []
-% Name8                     []
-% Name9                     []
-% Name10                    []
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
 % out1 [dim] description
 % Name1                     []
-% Name2                     []
-% Name3                     []
-% Name4                     []
-% Name5                     []
-% Name6                     []
-% Name7                     []
-% Name8                     []
-% Name9                     []
-% Name10                    []
 % -------------------------------------------------------------------------------------------------------------
 %% CHANGELOG
 % DD-MM-YYYY        Pietro Califano         Modifications
