@@ -1,4 +1,4 @@
-function [outputArg1,outputArg2] = SetupSimulinkConfigSet(inputArg1,inputArg2)
+function [outputArg1,outputArg2] = SetupSimulinkModelCodegen(inputArg1,inputArg2)
 %% SIGNATURE
 % -------------------------------------------------------------------------------------------------------------
 %% DESCRIPTION
@@ -26,7 +26,6 @@ function [outputArg1,outputArg2] = SetupSimulinkConfigSet(inputArg1,inputArg2)
 % [-]
 % -------------------------------------------------------------------------------------------------------------
 %% Function code
-
 
 
 end

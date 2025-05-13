@@ -1,35 +1,35 @@
-function [o_objMODEL_Sfcn] = SLX_AUTOCD_SETUPGEN(i_chModelName, ...
-    i_CfgParamsFile, ...
-    i_chBuildPath, ...
-    i_bBUILD_Sfcn, ...
-    i_bCODE_ONLY, ...
-    i_bPIL_TEST, ...
-    i_cTargetHWname)
+function [objMODEL_Sfcn] = SLX_AUTOCD_SETUPGEN(chModelName, ...
+    CfgParamsFile, ...
+    chBuildPath, ...
+    bBUILD_Sfcn, ...
+    bCODE_ONLY, ...
+    bPIL_TEST, ...
+    cTargetHWname)
 arguments
-    i_chModelName char
-    i_CfgParamsFile {mustBeA(i_CfgParamsFile, ["char", "Simulink.ConfigS6et"])} = 'SLX_AUTOCD_config.mat'
-    i_chBuildPath char = '.'
-    i_bBUILD_Sfcn logical = false
-    i_bCODE_ONLY logical = false
-    i_bPIL_TEST logical = false
-    i_cTargetHWname char = 'Raspberry Pi'
+    chModelName char
+    CfgParamsFile {mustBeA(CfgParamsFile, ["char", "Simulink.ConfigS6et"])} = 'SLX_AUTOCD_config.mat'
+    chBuildPath char = '.'
+    bBUILD_Sfcn logical = false
+    bCODE_ONLY logical = false
+    bPIL_TEST logical = false
+    cTargetHWname char = 'Raspberry Pi'
 end
 %% PROTOTYPE
-% [o_objMODEL_Sfcn] = SLX_AUTOCD_SETUPGEN(i_chModelName, ...
-%     i_CfgParamsFile, ...
-%     i_chBuildPath, ...
-%     i_bBUILD_Sfcn, ...
-%     i_bCODE_ONLY, ...
-%     i_bPIL_TEST, ...
-%     i_cTargetHWname);
+% [objMODEL_Sfcn] = SLX_AUTOCD_SETUPGEN(chModelName, ...
+%     CfgParamsFile, ...
+%     chBuildPath, ...
+%     bBUILD_Sfcn, ...
+%     bCODE_ONLY, ...
+%     bPIL_TEST, ...
+%     cTargetHWname);
 % arguments
-%     i_chModelName char
-%     i_CfgParamsFile {mustBeA(i_CfgParamsFile, ["char", "configset"])} = 'SLX_AUTOCD_config.mat'
-%     i_chBuildPath char = '.'
-%     i_bBUILD_Sfcn logical = false
-%     i_bCODE_ONLY logical = false
-%     i_bPIL_TEST logical = false
-%     i_cTargetHWname char = 'Raspberry Pi'
+%     chModelName char
+%     CfgParamsFile {mustBeA(CfgParamsFile, ["char", "configset"])} = 'SLX_AUTOCD_config.mat'
+%     chBuildPath char = '.'
+%     bBUILD_Sfcn logical = false
+%     bCODE_ONLY logical = false
+%     bPIL_TEST logical = false
+%     cTargetHWname char = 'Raspberry Pi'
 % end
 % -------------------------------------------------------------------------------------------------------------
 %% DESCRIPTION
@@ -41,16 +41,16 @@ end
 % 3) Parallel toolbox is used to accelerate generation if pool is available
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
-% i_chModelName char
-% i_ConfigParams {mustBeA(i_ConfigParams, ["char", "configset"])}
-% i_chBuildPath char = '.'
-% i_bBUILD_Sfcn logical = false
-% i_bCODE_ONLY logical = false
-% i_bPIL_TEST logical = false
-% i_cHWboardName char = 'Raspberry Pi'
+% chModelName char
+% ConfigParams {mustBeA(ConfigParams, ["char", "configset"])}
+% chBuildPath char = '.'
+% bBUILD_Sfcn logical = false
+% bCODE_ONLY logical = false
+% bPIL_TEST logical = false
+% cHWboardName char = 'Raspberry Pi'
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
-% o_objMODEL_Sfcn: S-function object for the top model if selected
+% objMODEL_Sfcn: S-function object for the top model if selected
 % -------------------------------------------------------------------------------------------------------------
 %% CHANGELOG
 % 07-12-2023    Pietro Califano     Enhanced version of prototype function coded for 6S cubesat.
@@ -69,50 +69,50 @@ end
 
 
 % Load configuration parameters 
-fprintf('LOADED CONFIG: %s\n', i_CfgParamsFile);
+fprintf('LOADED CONFIG: %s\n', CfgParamsFile);
 
-if ischar(i_CfgParamsFile)
+if ischar(CfgParamsFile)
 
     % Load mat file with configSet
-    tmpObj = load(i_CfgParamsFile, 'AUTOCDconfig');
-    slxConfigParams = tmpObj.(i_CfgParamsFile); 
+    tmpObj = load(CfgParamsFile, 'AUTOCDconfig');
+    slxConfigParams = tmpObj.(CfgParamsFile); 
 
-elseif isobject(i_CfgParamsFile)
-    slxConfigParams = i_CfgParamsFile;
+elseif isobject(CfgParamsFile)
+    slxConfigParams = CfgParamsFile;
 else
     error('\nConfigSet neither ConfigSet object nor char')
 end
 
 %% Load system model
-load_system(i_chModelName);
-ismodel_loaded = bdIsLoaded(i_chModelName);
+load_system(chModelName);
+ismodel_loaded = bdIsLoaded(chModelName);
 
 if ismodel_loaded == 1
-    fprintf('\nMODEL %s LOADING: COMPLETED\n', i_chModelName)
+    fprintf('\nMODEL %s LOADING: COMPLETED\n', chModelName)
 else
-    error(strcat('\nMODEL', i_chModelName, 'LOADING: FAILED \n'));
+    error(strcat('\nMODEL', chModelName, 'LOADING: FAILED \n'));
 end
 
 
 %% Check if model uses loaded configSet, else force it
 disp('Checking Model configuration parameters...')
-currentConfigSet = getActiveConfigSet(i_chModelName);
+currentConfigSet = getActiveConfigSet(chModelName);
 
 if ~strcmp(currentConfigSet.Name, slxConfigParams.Name)
-    setActiveConfigSet(i_chModelName, slxConfigParams);
+    setActiveConfigSet(chModelName, slxConfigParams);
     disp('Model configuration set forced as input configuration.')
 else
     disp('Model configuration set already matching input configuration')
 end
 
-if not(exist('i_chBuildPath', 'dir'))
-    mkdir(i_chBuildPath)
+if not(exist('chBuildPath', 'dir'))
+    mkdir(chBuildPath)
 end
 
 %% PIL HW board setting
-if i_bPIL_TEST == true    
+if bPIL_TEST == true    
     try
-        set_param(i_chModelName, 'HardwareBoard', i_cTargetHWname)
+        set_param(chModelName, 'HardwareBoard', cTargetHWname)
         isPIL_SETUP_FAILED = false;
     catch ME
         warning(strcat('Error encountered in setting Hardware Target architecture\n: ', ME.message));
@@ -120,7 +120,7 @@ if i_bPIL_TEST == true
     end
 end
 
-if or(isPIL_SETUP_FAILED, not(i_bPIL_TEST))
+if or(isPIL_SETUP_FAILED, not(bPIL_TEST))
 % Set computer architecture as default
 % WORK IN PROGESS
 warning('NOT READY YET')
@@ -130,21 +130,21 @@ end
 try
     parPool = gcp('nocreate');
     if not(isempty(parPool))
-        set_param(i_chModelName, 'EnableParallelModelReferenceBuilds', true)
+        set_param(chModelName, 'EnableParallelModelReferenceBuilds', true)
     else
-        set_param(i_chModelName, 'EnableParallelModelReferenceBuilds', false)
+        set_param(chModelName, 'EnableParallelModelReferenceBuilds', false)
     end
 catch
     % No parallel Toolbox available
-    set_param(i_chModelName, 'EnableParallelModelReferenceBuilds', false)
+    set_param(chModelName, 'EnableParallelModelReferenceBuilds', false)
 end
 
 
 %% Check for model references in top model
-mdlRef = find_system(i_chModelName, 'BlockType', 'ModelReference');
+mdlRef = find_system(chModelName, 'BlockType', 'ModelReference');
 if not(isempty(mdlRef))
     % Propagate configuration reference to all reference models
-    [isPropagated, convertedModels] = Simulink.BlockDiagram.propagateConfigSet(i_chModelName);
+    [isPropagated, convertedModels] = Simulink.BlockDiagram.propagateConfigSet(chModelName);
     % Check for propagation errors
     if isPropagated == 0
         error(strcat('Configuration Reference propagation failed for models: ', convertedModels(isPropagated == 0)));
@@ -155,34 +155,34 @@ if not(isempty(mdlRef))
             fprintf('Config. Ref. propagation to %s: DONE\n', convertedModels{modelID});
         end
         % Save system 
-        if strcmp(get_param(i_chModelName, 'Dirty'),'on')
-            save_system(i_chModelName, 'SaveDirtyReferencedModels', 'on');
+        if strcmp(get_param(chModelName, 'Dirty'),'on')
+            save_system(chModelName, 'SaveDirtyReferencedModels', 'on');
         end
     end
 end
 
 
 %% Open model
-open(i_chModelName);
+open(chModelName);
 
 % Change directory to BUILD
 currentDir = pwd;
-cd(i_chBuildPath)
+cd(chBuildPath)
 
 %% Call slbuild to build model
-if i_bBUILD_Sfcn == true
-    o_objMODEL_Sfcn = slbuild(i_chModelName, ...
+if bBUILD_Sfcn == true
+    objMODEL_Sfcn = slbuild(chModelName, ...
         'UpdateThisModelReferenceTarget', 'IfOutOfDate', ...
-        'GenerateCodeOnly', i_bCODE_ONLY, ...
+        'GenerateCodeOnly', bCODE_ONLY, ...
         'OpenBuildStatusAutomatically', true);
 else
-    slbuild(i_chModelName, ...
+    slbuild(chModelName, ...
         'UpdateThisModelReferenceTarget', 'IfOutOfDate', ...
-        'GenerateCodeOnly', i_bCODE_ONLY, ...
+        'GenerateCodeOnly', bCODE_ONLY, ...
         'OpenBuildStatusAutomatically', true);
 end
 
 % Go back to top directory and addpath
 cd(currentDir);
-addpath(genpath(strcat(i_chBuildPath, 'slprj/ert')));
+addpath(genpath(strcat(chBuildPath, 'slprj/ert')));
 
