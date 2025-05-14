@@ -253,6 +253,9 @@ if kwargs.bStoreDefaultValues
             fprintf(i32Fid, 'strDefault.%s = cast(%s, ''%s'');\n', charField, charValStr, charDatatype);
         end
     end
+
+    % Order fields
+    fprintf(i32Fid, 'strDefault = orderfields(strDefault);\n');
     fprintf(i32Fid, '\n');
 end
 
