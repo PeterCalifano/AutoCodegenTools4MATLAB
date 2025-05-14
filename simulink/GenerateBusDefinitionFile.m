@@ -1,14 +1,19 @@
 function GenerateBusDefinitionFile(strInput, charBusName, charOutputFolder, kwargs)
 arguments
-    strInput
-    charBusName
-    charOutputFolder
+    strInput         {isstruct}
+    charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
+    charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])} = './bus_autodefs'
 end
 arguments
-    kwargs.bStoreExampleValues {islogical, isscalar} = false
+    kwargs.bStoreDefaultValues          {islogical, isscalar} = true
+    kwargs.bDefineBusesInPlace          {islogical, isscalar} = false;
+    kwargs.charHeaderDescription string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
 end
 %% DESCRIPTION
-% What the function does
+% Code generator function for bus definition files with default values definition and in-place evaluation.
+% Given an input struct, it automatically generates a function defining the corresponding bus. Nested
+% structures are handled by recursive calls, where the top-level definition automatically calls the
+% dependencies.
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
 % in1 [dim] description
@@ -24,6 +29,8 @@ end
 % -------------------------------------------------------------------------------------------------------------
 %% CHANGELOG
 % 13-05-2025    Pietro Califano & o4-mini-high      First prototype version.
+% 14-05-2025    Pietro Califano                     Upgrade to support in-place definition of buses and
+%                                                   examples, casting of default values, better header file. 
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
@@ -38,13 +45,39 @@ if ~exist(charOutputFolder, 'dir')
     mkdir(charOutputFolder);
 end
 
-% Track which buses have been generated
-mapVisited = containers.Map();
-WriteBusFile(strInput, charBusName, charOutputFolder, mapVisited, kwargs);
+% Track which buses have been generated using a map
+objDefinedFieldsMap = containers.Map();
+
+% Write definition for top-level bus (recursively defining nested structs)
+WriteBusFile(strInput, charBusName, charOutputFolder, objDefinedFieldsMap, kwargs);
+
+
+if kwargs.bDefineBusesInPlace
+    % Ensure generated files are on path
+    addpath(charOutputFolder);
+    charCmd = sprintf('[~, ~] = BusDef_%s();', charBusName);
+
+    % Call top-level generated file
+    evalin("caller", charCmd);
 end
 
-%%% Core function: bus definition code-generator
+end
+
+%% Core function: bus definition code-generator
 function WriteBusFile(varStruct, charBusName, charOutputFolder, objDefinedFieldsMap, kwargs)
+arguments
+    varStruct
+    charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
+    charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])}
+    objDefinedFieldsMap
+    kwargs
+end
+% arguments
+%     kwargs.bStoreDefaultValues          {islogical, isscalar} = true
+%     kwargs.bDefineBusesInPlace          {islogical, isscalar} = false;
+%     kwargs.charHeaderDescription string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
+% end
+
 % Avoid regenerating the same bus
 if objDefinedFieldsMap.isKey(charBusName)
     return
@@ -56,7 +89,8 @@ objDefinedFieldsMap(charBusName) = true;
 cellFieldNames = fieldnames(orderfields(varStruct));
 
 % Open definition file
-charFilePath = fullfile(charOutputFolder, strcat('Define_', charBusName, '.m'));
+charFcnPrefix = "BusDef";
+charFilePath = fullfile(charOutputFolder, strcat(charFcnPrefix, '_', charBusName, '.m'));
 i32Fid = fopen(charFilePath, 'w');
 if i32Fid == -1
     error("Cannot open '%s' for writing.", charFilePath)
@@ -64,13 +98,67 @@ end
 
 % Write function signature
 fprintf(i32Fid, 'function [Bus');
-if kwargs.bStoreExampleValues
-    fprintf(i32Fid, ', Example');
+if kwargs.bStoreDefaultValues
+    fprintf(i32Fid, ', strDefault');
 end
-fprintf(i32Fid, '] = Define_%s()\n', charBusName);
-% Write file header
-fprintf(i32Fid, '%% Auto-generated Simulink.Bus definition for %s\n\n', charBusName); 
-% TODO add details such as data, author and system
+fprintf(i32Fid, '] = %s_%s()\n', charFcnPrefix, charBusName);
+
+%%% Write file header
+% --- Generation metadata ---
+charDate   = datetime("now", "Format", 'yyyy-MM-dd hh:mm:ss');
+[~, charHostname] = system("hostname");
+charAuthor = strcat(getenv('USERNAME'), "@", charHostname);
+charSystem = computer();
+[charMatVer] = version; % MATLAB release string
+[bOutStatus, charGitCommitHashOut] = system('git rev-parse --short HEAD'); % Git commit
+if bOutStatus == 0
+    charCommit = strtrim(charGitCommitHashOut);
+else
+    charCommit = 'N/A';
+end
+
+% Parse additional description if provided
+charDescription = 'Not provided';
+bValidFile = false;
+if not(strcmpi(kwargs.charHeaderDescription, ""))
+    [~, ~, charExt] = fileparts(kwargs.charHeaderDescription); % Check if file
+
+    % Remove dot from extention
+    charExt = strrep(charExt, '.', '');
+
+    if strcmpi(charExt, 'txt') && isfile(kwargs.charHeaderDescription)
+        bValidFile = true;
+    end
+
+    if bValidFile
+        % Fetch description from file
+        charDescription = fileread(kwargs.charHeaderDescription);
+
+    elseif not(bValidFile)
+        % Parse directly as string
+        charDescription = sprintf(" %s", kwargs.charHeaderDescription);
+    else
+        warning('Invalid description input. Must be a .txt file or a string. Custom description will not be included in the definition header.')
+    end
+
+end
+
+
+% Build header string
+charHeaderDef = sprintf([ ...
+    '%%%%%% -------- Auto-generated Simulink.Bus definition for %s --------\n' ...
+    '%% Date: %s\n'                         ...
+    '%% MATLAB Version: %s\n'               ...
+    '%% Commit reference: %s\n'              ...
+    '%% Description: %s\n'                  ...
+    '%% Author: %s\n'                       ...
+    '%% System: %s\n' ...
+    '%% --------------------------------------------------------------------\n\n'],                 ...
+    charBusName, charDate, charMatVer, charCommit, charDescription, charAuthor, charSystem);
+
+fprintf(i32Fid, '%s', charHeaderDef);
+
+% ------------------------------------
 
 % TODO: add error if field is a cell or something else (not supported)
 
@@ -85,18 +173,26 @@ for ui32Idx = 1:numel(cellFieldNames)
         charSubBus = sprintf('%s_%s', charBusName, charField);
 
         % Recurse to generate sub-bus
-        WriteBusFile(varVal, charSubBus, charOutputFolder, objDefinedFieldsMap, kwargs);
-        
+        WriteBusFile(varVal, ...
+            charSubBus, ...
+            charOutputFolder, ...
+            objDefinedFieldsMap, ...
+            kwargs);
+
         % Write call to bus definition % TODO add an eval to move bus definition to workspace of "top
         % caller"
-        if kwargs.bStoreExampleValues
-            fprintf(i32Fid, '[Bus_%s, Example_%s] = Define_%s();\n', ...
-                charSubBus, charSubBus, charSubBus);
-            fprintf(i32Fid, 'evalin("base", "Bus_%s");\n', charSubBus);
-            fprintf(i32Fid, 'evalin("base", "Example_%s");\n', charSubBus);
+        if not(isfield(kwargs, "bStoreDefaultValues"))
+            kwargs.bStoreDefaultValues = true;
+        end
+
+        if kwargs.bStoreDefaultValues
+            fprintf(i32Fid, '[Bus_%s, default_%s] = %s_%s();\n\n', ...
+                charSubBus, charSubBus, charFcnPrefix, charSubBus);
+            fprintf(i32Fid, 'assignin("caller", "bus_%s", Bus_%s);\n', charSubBus, charSubBus);
+            fprintf(i32Fid, 'assignin("caller", "str%s", default_%s);\n', charSubBus, charSubBus);
         else
-            fprintf(i32Fid, 'Bus_%s = Define_%s();\n', charSubBus, charSubBus);
-            fprintf(i32Fid, 'evalin("base", "Bus_%s");', charSubBus);
+            fprintf(i32Fid, '%s = BusDef_%s();\n', charSubBus, charSubBus);
+            fprintf(i32Fid, 'assignin("caller", "bus_%s", Bus_%s);', charSubBus, charSubBus);
         end
 
     end
@@ -105,11 +201,14 @@ end
 fprintf(i32Fid, '\n');
 
 %% Build the BusElement list
+fprintf(i32Fid, '\n%% Define %s bus object\n', charBusName);
 fprintf(i32Fid, 'elems = Simulink.BusElement.empty;\n\n');
+
 for ui32Idx = 1:numel(cellFieldNames)
     charField = cellFieldNames{ui32Idx};
     varVal    = varStruct.(charField);
 
+    fprintf(i32Fid, '%% Bus element %s definition\n', charField);
     fprintf(i32Fid, 'elem = Simulink.BusElement;\n');
     fprintf(i32Fid, 'elem.Name = ''%s'';\n', charField);
 
@@ -134,19 +233,20 @@ fprintf(i32Fid, 'Bus = Simulink.Bus;\n');
 fprintf(i32Fid, 'Bus.Elements = elems;\n\n');
 
 %% Optional example struct
-if kwargs.bStoreExampleValues
-    fprintf(i32Fid, '%% Example struct initialization\n');
-    fprintf(i32Fid, 'Example = struct();\n');
+if kwargs.bStoreDefaultValues
+    fprintf(i32Fid, '%% Default struct initialization\n');
+    fprintf(i32Fid, 'strDefault = struct();\n');
     for ui32Idx = 1:numel(cellFieldNames)
         charField = cellFieldNames{ui32Idx};
         varVal    = varStruct.(charField);
 
         if isstruct(varVal) || isobject(varVal)
             charSubBus = sprintf('%s_%s', charBusName, charField);
-            fprintf(i32Fid, 'Example.%s = Example_%s;\n', charField, charSubBus);
+            fprintf(i32Fid, 'strDefault.%s = default_%s;\n', charField, charSubBus);
         else
+            charDatatype = class(varVal);
             charValStr = FormatValue(varVal);
-            fprintf(i32Fid, 'Example.%s = %s;\n', charField, charValStr);
+            fprintf(i32Fid, 'strDefault.%s = cast(%s, ''%s'');\n', charField, charValStr, charDatatype);
         end
     end
     fprintf(i32Fid, '\n');
@@ -156,7 +256,6 @@ fprintf(i32Fid, 'end\n');
 fclose(i32Fid);
 
 fprintf('Generated: %s\n', charFilePath);
-
 
 end
 
