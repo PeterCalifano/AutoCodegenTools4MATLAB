@@ -44,7 +44,7 @@ end
 %% Function code
 
 % Create output folder if needed
-if ~exist(charOutputFolder, 'dir')
+if ~isfolder(charOutputFolder)
     mkdir(charOutputFolder);
 end
 
@@ -52,6 +52,7 @@ end
 objDefinedFieldsMap = containers.Map();
 
 % Write definition for top-level bus (recursively defining nested structs)
+kwargs.bIsRecursive = false;
 WriteBusFile(strInput, charBusName, charOutputFolder, objDefinedFieldsMap, kwargs);
 
 if kwargs.bDefineBusesInPlace
@@ -68,7 +69,7 @@ end
 %% Core function: bus definition code-generator
 function WriteBusFile(varStruct, charBusName, charOutputFolder, objDefinedFieldsMap, kwargs)
 arguments
-    varStruct
+    varStruct        {isstruct}
     charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
     charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])}
     objDefinedFieldsMap
@@ -145,7 +146,6 @@ if not(strcmpi(kwargs.charHeaderDescription, ""))
 
 end
 
-
 % Build header string
 charHeaderDef = sprintf([ ...
     '%%%%%% -------- Auto-generated Simulink.Bus definition for %s --------\n' ...
@@ -175,11 +175,14 @@ for ui32Idx = 1:numel(cellFieldNames)
         charSubBus = sprintf('%s_%s', charBusName, charField);
 
         % Recurse to generate sub-bus
+        strTmpKwargs = kwargs;
+        strTmpKwargs.bIsRecursive = true;
+
         WriteBusFile(varVal, ...
             charSubBus, ...
             charOutputFolder, ...
             objDefinedFieldsMap, ...
-            kwargs);
+            strTmpKwargs);
 
         % Write call to bus definition % TODO add an eval to move bus definition to workspace of "top
         % caller"
@@ -191,7 +194,7 @@ for ui32Idx = 1:numel(cellFieldNames)
             fprintf(i32Fid, '[Bus_%s, default_%s] = %s_%s();\n\n', ...
                 charSubBus, charSubBus, charFcnPrefix, charSubBus);
             fprintf(i32Fid, 'assignin("caller", "bus_%s", Bus_%s);\n', charSubBus, charSubBus);
-            fprintf(i32Fid, 'assignin("caller", "str%s", default_%s);\n', charSubBus, charSubBus);
+            fprintf(i32Fid, 'assignin("caller", "%s", default_%s);\n', charSubBus, charSubBus);
         else
             fprintf(i32Fid, '%s = BusDef_%s();\n', charSubBus, charSubBus);
             fprintf(i32Fid, 'assignin("caller", "bus_%s", Bus_%s);', charSubBus, charSubBus);
@@ -201,8 +204,7 @@ for ui32Idx = 1:numel(cellFieldNames)
 
 end
 fprintf(i32Fid, '\n');
-
-%% Build the BusElement list
+%%% Build the BusElement list
 fprintf(i32Fid, '\n%% Define %s bus object\n', charBusName);
 fprintf(i32Fid, 'elems = Simulink.BusElement.empty;\n\n');
 
@@ -216,7 +218,7 @@ for ui32Idx = 1:numel(cellFieldNames)
 
     if isstruct(varVal) || isobject(varVal)
         charSubBus = sprintf('%s_%s', charBusName, charField);
-        fprintf(i32Fid, 'elem.DataType = ''Bus: %s'';\n', charSubBus);
+        fprintf(i32Fid, 'elem.DataType = ''Bus: bus_%s'';\n', charSubBus);
         fprintf(i32Fid, 'elem.Dimensions = 1;\n');
     else
         dDims = size(varVal);
@@ -230,11 +232,11 @@ for ui32Idx = 1:numel(cellFieldNames)
     fprintf(i32Fid, 'elems(end+1) = elem;\n\n');
 end
 
-%% Create the bus object
+%%% Create the bus object
 fprintf(i32Fid, 'Bus = Simulink.Bus;\n');
 fprintf(i32Fid, 'Bus.Elements = elems;\n\n');
 
-%% Optional example struct
+%%% Optional example struct
 if kwargs.bStoreDefaultValues
     fprintf(i32Fid, '%% Default struct initialization\n');
     fprintf(i32Fid, 'strDefault = struct();\n');
@@ -252,6 +254,14 @@ if kwargs.bStoreDefaultValues
         end
     end
     fprintf(i32Fid, '\n');
+end
+
+% Generate assignin call to evaluate to caller
+if not(kwargs.bIsRecursive)
+    fprintf(i32Fid, sprintf('assignin("caller", "bus_%s", Bus);\n', charBusName) );
+    if kwargs.bStoreDefaultValues
+        fprintf(i32Fid, sprintf('assignin("caller", "%s", strDefault);\n', charBusName) );
+    end
 end
 
 fprintf(i32Fid, 'end\n');
