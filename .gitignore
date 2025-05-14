@@ -5,6 +5,7 @@
 *.mexa64
 *.xslx
 *.asv
+**/BusDef_*
 
 # Prerequisites
 *.d
