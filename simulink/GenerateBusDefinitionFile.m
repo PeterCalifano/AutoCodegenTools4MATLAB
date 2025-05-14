@@ -12,20 +12,23 @@ end
 %% DESCRIPTION
 % Code generator function for bus definition files with default values definition and in-place evaluation.
 % Given an input struct, it automatically generates a function defining the corresponding bus. Nested
-% structures are handled by recursive calls, where the top-level definition automatically calls the
-% dependencies.
+% structures are handled by recursive calls. The top-level definition automatically calls the
+% dependencies. The function provides bus definition object and default values if requested.
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
-% in1 [dim] description
-% Name1                     []
-% Name2                     []
-% Name3                     []
+% arguments
+%     strInput         {isstruct}
+%     charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
+%     charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])} = './bus_autodefs'
+% end
+% arguments
+%     kwargs.bStoreDefaultValues          {islogical, isscalar} = true
+%     kwargs.bDefineBusesInPlace          {islogical, isscalar} = false;
+%     kwargs.charHeaderDescription string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
+% end
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
-% out1 [dim] description
-% Name1                     []
-% Name2                     []
-% Name3                     []
+% [-]
 % -------------------------------------------------------------------------------------------------------------
 %% CHANGELOG
 % 13-05-2025    Pietro Califano & o4-mini-high      First prototype version.
@@ -50,7 +53,6 @@ objDefinedFieldsMap = containers.Map();
 
 % Write definition for top-level bus (recursively defining nested structs)
 WriteBusFile(strInput, charBusName, charOutputFolder, objDefinedFieldsMap, kwargs);
-
 
 if kwargs.bDefineBusesInPlace
     % Ensure generated files are on path

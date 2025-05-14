@@ -1,6 +1,5 @@
 # MATLAB
 *cache*
-*.slx
 **/*slprj
 *.mexa64
 *.xslx
