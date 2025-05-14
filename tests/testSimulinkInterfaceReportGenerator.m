@@ -26,13 +26,11 @@ GenerateBusDefinitionFile(strDataBus, ...
                           "bDefineBusesInPlace", true, ...
                           "bStoreDefaultValues", true);
 
-return
-
 %% Report generation
-% Build model using the active configset
-Simulink.BlockDiagram.buildActiveConfigSet(charModelName);
-
 % Create report
+import mlreportgen.report.*    % Exposes Chapter, Section, etc.
+import slreportgen.report.*    % Exposes Report, SystemIO, etc.
+
 charDocType = 'pdf';
 objReport = slreportgen.report.Report("./testAutoICD.pdf", charDocType);  
 open(objReport);
@@ -42,7 +40,7 @@ objICDchapter  = Chapter("Interface Control Document");
 add(objReport, objICDchapter);
 
 % Add system I/O definitions
-objModelDefsIO = SystemIO(charSubsysPath);
+objModelDefsIO = slreportgen.report.SystemIO(charSubsysPath);
 add(objReport, objModelDefsIO);
 
 close(objReport);
