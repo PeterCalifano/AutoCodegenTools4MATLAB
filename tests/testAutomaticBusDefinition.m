@@ -30,3 +30,7 @@ GenerateBusDefinitionFile(strInput, ...
     "bDefineBusesInPlace", true, ...
     "charHeaderDescription", charTestDescript);
 
+strInput.strAttitudeData = orderfields(strInput.strAttitudeData); % Order fields of nested struct
+compareStructures(testBusWithExample, orderfields(strInput));
+
+
