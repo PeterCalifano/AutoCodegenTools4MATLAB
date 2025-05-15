@@ -178,6 +178,11 @@ for ui32Idx = 1:numel(cellFieldNames)
         strTmpKwargs = kwargs;
         strTmpKwargs.bIsRecursive = true;
 
+        % Add skip for struct arrays
+        if numel(varStruct) > 1
+            strTmpKwargs.strParentStruct = varStruct;
+        end
+
         WriteBusFile(varVal, ...
             charSubBus, ...
             charOutputFolder, ...
@@ -209,27 +214,35 @@ fprintf(i32Fid, '\n%% Define %s bus object\n', charBusName);
 fprintf(i32Fid, 'elems = Simulink.BusElement.empty;\n\n');
 
 for ui32Idx = 1:numel(cellFieldNames)
+
     charField = cellFieldNames{ui32Idx};
     varVal    = varStruct.(charField);
 
-    fprintf(i32Fid, '%% Bus element %s definition\n', charField);
-    fprintf(i32Fid, 'elem = Simulink.BusElement;\n');
-    fprintf(i32Fid, 'elem.Name = ''%s'';\n', charField);
+    if not(isempty(varVal))
+        fprintf(i32Fid, '%% Bus element %s definition\n', charField);
+        fprintf(i32Fid, 'elem = Simulink.BusElement;\n');
+        fprintf(i32Fid, 'elem.Name = ''%s'';\n', charField);
 
-    if isstruct(varVal) || isobject(varVal)
-        charSubBus = sprintf('%s_%s', charBusName, charField);
-        fprintf(i32Fid, 'elem.DataType = ''Bus: bus_%s'';\n', charSubBus);
-        fprintf(i32Fid, 'elem.Dimensions = 1;\n');
-    else
-        dDims = size(varVal);
-        if ischar(varVal)
-            dDims = [1, numel(varVal)];
+        if (isstruct(varVal) || isobject(varVal))
+            charSubBus = sprintf('%s_%s', charBusName, charField);
+            fprintf(i32Fid, 'elem.DataType = ''Bus: bus_%s'';\n', charSubBus);
+            fprintf(i32Fid, 'elem.Dimensions = %s;\n', num2str(numel(varVal)));
+
+        else
+            dDims = size(varVal);
+            if ischar(varVal)
+                dDims = [1, numel(varVal)];
+            end
+            fprintf(i32Fid, 'elem.DataType = ''%s'';\n', class(varVal));
+            fprintf(i32Fid, 'elem.Dimensions = %s;\n', mat2str(dDims));
         end
-        fprintf(i32Fid, 'elem.DataType = ''%s'';\n', class(varVal));
-        fprintf(i32Fid, 'elem.Dimensions = %s;\n', mat2str(dDims));
+    else
+        fprintf(i32Fid, '%% Empty bus element detected: %s definition skipped.\n\n', charField);
     end
 
-    fprintf(i32Fid, 'elems(end+1) = elem;\n\n');
+    if not(isempty(varVal))
+        fprintf(i32Fid, 'elems(end+1) = elem;\n\n');
+    end
 end
 
 %%% Create the bus object
@@ -238,19 +251,54 @@ fprintf(i32Fid, 'Bus.Elements = elems;\n\n');
 
 %%% Optional example struct
 if kwargs.bStoreDefaultValues
+
     fprintf(i32Fid, '%% Default struct initialization\n');
     fprintf(i32Fid, 'strDefault = struct();\n');
-    for ui32Idx = 1:numel(cellFieldNames)
-        charField = cellFieldNames{ui32Idx};
-        varVal    = varStruct.(charField);
 
-        if isstruct(varVal) || isobject(varVal)
-            charSubBus = sprintf('%s_%s', charBusName, charField);
-            fprintf(i32Fid, 'strDefault.%s = default_%s;\n', charField, charSubBus);
+    for ui32Idx = 1:numel(cellFieldNames)
+        
+        charField = cellFieldNames{ui32Idx};
+    
+        % Check if parent is an array
+        if isfield(kwargs,"strParentStruct")
+            ui32ArraySize = length(kwargs.strParentStruct);
         else
-            charDatatype = class(varVal);
-            charValStr = FormatValue(varVal);
-            fprintf(i32Fid, 'strDefault.%s = cast(%s, ''%s'');\n', charField, charValStr, charDatatype);
+            ui32ArraySize = 1;
+            varVal    = varStruct.(charField);
+        end
+
+        for idArray = 1:ui32ArraySize
+            % Get value from the corresponding struct
+            if ui32ArraySize > 1
+                charCurrentStructFieldName = split(charBusName, '_');
+                charCurrentStructFieldName = charCurrentStructFieldName(end);
+                varVal    = kwargs.strParentStruct(idArray).(charCurrentStructFieldName).(charField);
+            end
+        
+            if not(isempty(varVal))
+
+                if isstruct(varVal) || isobject(varVal)
+                    charSubBus = sprintf('%s_%s', charBusName, charField);
+
+                    if numel(varVal) == 1
+                        fprintf(i32Fid, 'strDefault(%d).%s = default_%s;\n', idArray, charField, charSubBus);
+
+                    elseif numel(varVal) > 1
+
+                        for idVal = 1:numel(varVal)
+                            fprintf(i32Fid, 'strDefault(%d).%s(%d) = default_%s;\n', idArray, charField, idVal, sprintf('%s(%d)', charSubBus, idVal) );
+                        end
+
+                    else
+                        error('Invalid number of objects.')
+                    end
+
+                else
+                    charDatatype = class(varVal);
+                    charValStr = FormatValue(varVal);
+                    fprintf(i32Fid, 'strDefault(%d).%s = cast(%s, ''%s'');\n', idArray, charField, charValStr, charDatatype);
+                end
+            end
         end
     end
 
@@ -277,13 +325,28 @@ end
 %% Auxiliary functions
 % Value formatting function
 function charVal = FormatValue(varVal)
-if ischar(varVal)
-    charVal = ['''' varVal ''''];
-elseif islogical(varVal) || (~isempty(varVal) && isnumeric(varVal))
-    charVal = mat2str(varVal);
-else
-    charVal = '[]';
+
+    if ischar(varVal)
+        charVal = ['''' varVal ''''];
+
+    elseif islogical(varVal)
+        charVal = mat2str(varVal);
+
+    elseif isnumeric(varVal)
+        dDims = ndims(varVal);
+
+        if dDims <= 2
+            charVal = mat2str(varVal);
+        else
+            % Handle 3D (or higher) numeric arrays
+            ui32Dims    = size(varVal);
+            varLinVec   = varVal(:)';
+            charVal     = sprintf('reshape(%s, %s)', mat2str(varLinVec), mat2str(ui32Dims));
+        end
+    else
+        charVal = '[]';
+    end
 end
-end
+
 
 % Bus loading function
