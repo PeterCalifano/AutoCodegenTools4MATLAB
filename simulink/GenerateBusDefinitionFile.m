@@ -233,7 +233,13 @@ for ui32Idx = 1:numel(cellFieldNames)
             if ischar(varVal)
                 dDims = [1, numel(varVal)];
             end
-            fprintf(i32Fid, 'elem.DataType = ''%s'';\n', class(varVal));
+
+            charDatatype = class(varVal);
+            if strcmpi(charDatatype, "logical")
+                charDatatype = "boolean"; % Handle different typename logical <-> boolean
+            end
+
+            fprintf(i32Fid, 'elem.DataType = ''%s'';\n', charDatatype);
             fprintf(i32Fid, 'elem.Dimensions = %s;\n', mat2str(dDims));
         end
     else
