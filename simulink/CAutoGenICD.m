@@ -36,24 +36,30 @@ classdef CAutoGenICD < handle
                 charInitScript     (1,1) string {mustBeA(charInitScript, ["string", "char"])}
             end
 
-            if not(iscell(cellSubsystemPaths))
+            % Handle string case (convert to cell)
+            if not(iscell(cellSubsystemPaths)) 
                 if length(string(cellSubsystemPaths)) == 1
                     cellSubsystemPaths = {cellSubsystemPaths};
                 else
-                    error('Please provide a cell variable to specify multiple subsystems.')
+                    error('Please provide a cell variable to specify multiple target subsystems.')
+                end
+            end
+
+            % Assert validity of target subsystem
+            for idTarget = 1:length(cellSubsystemPaths)
+                if strcmpi(cellSubsystemPaths{idTarget}, "")
+                    error('Invalid target subsystem "%s": cannot be empty path.', cellSubsystemPaths{idTarget})
                 end
             end
             
             % Assert model and init script exist
-            [charDirPath, charModelPath] = fileparts(charModelPath); % Strip extension
-            charModelPath = fullfile(charDirPath, charModelPath);
-            if isfile(charModelPath)
+            [charDirPath, charModelPath_noExt] = fileparts(charModelPath); % Strip extension
+            if isfile(fullfile(charDirPath, charModelPath_noExt))
                 error('Model file %s not found!', charModelPath);
             end
 
-            [charDirPath, charInitScript] = fileparts(charInitScript); % Strip extension
-            charInitScript = fullfile(charDirPath, charInitScript);
-            if isfile(charInitScript)
+            [charDirPath, charInitScript_noExt] = fileparts(charInitScript); % Strip extension
+            if isfile(fullfile(charDirPath, charInitScript_noExt))
                 error('Initialization script %s not found!', charInitScript);
             end
 
@@ -74,7 +80,6 @@ classdef CAutoGenICD < handle
         function [strModelData] = getICDDataFromModel(self)
             % Compile model and extract ICD data for each subsystem
             self.compileModel_();
-
             strModelData = struct();
 
             for dIdx = 1:numel(self.cellSubsystemPaths)
@@ -85,15 +90,16 @@ classdef CAutoGenICD < handle
                 charKey = matlab.lang.makeValidName(strrep(charSubsysPath, '/', '_'));
 
                 % Get data from SLX model
-                if contains(struct2array(ver), 'Simulink Report Generator')
-                    strModelData.(charKey) = self.extractSubsysData_(charSubsysPath);
-                else
+                % if contains(struct2array(ver), 'Simulink Report Generator')
+                    % strModelData.(charKey) = self.extractSubsysData_(charSubsysPath);
+                % else
                     strModelData.(charKey) = self.extractSubsysDataManual_(charSubsysPath);
-                end
+                % end
             end
 
             % Assign data for each subsystem
             self.strICDData = strModelData;
+            
         end
 
         function tableOut = exportICD(self, charOutputFolder, kwargs)
@@ -140,14 +146,14 @@ classdef CAutoGenICD < handle
                 % Write table
                 charFilename = fullfile( charOutputFolder, strcat(charKey, '_ICD.', kwargs.enumOutFormat) );
                 writetable(tableICD, charFilename, ...
-                            'Delimiter',',', ...
-                            "FileType", charFormatType, ...
-                            'Sheet', 1, ...
-                            'WriteVariableNames', true, ...
-                            "WriteRowNames",true, ...
-                            "AutoFitWidth", true, ...
-                            'PreserveFormat',true);
-                
+                    'Delimiter',',', ...
+                    "FileType", charFormatType, ...
+                    'Sheet', 1, ...
+                    'WriteVariableNames', true, ...
+                    "WriteRowNames",true, ...
+                    "AutoFitWidth", true, ...
+                    'PreserveFormat',true);
+
                 fprintf('Generated ICD for "%s" system to file "%s"\n', charKey, charFilename);
             end
 
@@ -156,19 +162,43 @@ classdef CAutoGenICD < handle
 
     % PROTECTED METHODS
     methods (Access = protected)
+
         function compileModel_(self)
+            % compileModel Load init data into model workspace and compile model
+            arguments
+                self; 
+            end
 
-            % Run init script, load and compile the model
-            run(self.charInitScript);
-            % evalin('base', strcat('run(', self.charInitScript, ')') );
+            % Import initialization data
+            % if ~isempty(self.charInitScript)
+            % 
+            %     [~,~,charExt] = fileparts(self.charInitScript);
+            %     objModelWS = get_param(self.charModelName, 'ModelWorkspace');
+            % 
+            %     switch lower(charExt)
+            % 
+            %         case '.m'
+            %             % Run script in base workspace
+            %             evalin('caller', sprintf('run(''%s'');', self.charInitScript));
+            %             % Save base variables to temporary MAT
+            %             tmpMat = fullfile(tempdir, strcat(matlab.lang.makeValidName(self.charModelName), '_init.mat') );
+            %             evalin('caller', sprintf('save(''%s'');', tmpMat));
+            %             objModelWS.evalin("base", sprintf('load(''%s'');', tmpMat));
+            % 
+            %         case '.mat'
+            %             % Load MAT directly into model workspace
+            %             objModelWS.evalin("base", sprintf('load(''%s'');', self.charInitScript));
+            %         otherwise
+            %             error('Initialization file must be a .m script or .mat file');
+            %     end
+            % end
 
-            % Load system
+            % Load model and compile (populate compiled port data)
             load_system(self.charModelName);
-
-            % Build simulink model
-            % slbuild(self.charModelName); % DEVNOTE: this builds the model
-            set_param(self.charModelName, 'SimulationCommand', 'update');
+            % Equivalent to selecting Format->Port Data Types
         end
+
+
 
         function tableICD = extractSubsysData_(self, charSubsysPath)
             arguments (Input)
@@ -218,7 +248,7 @@ classdef CAutoGenICD < handle
             for i = 1:dNum
 
                 tmpHandle = handlesAll(i);
-                
+
                 % Telemetry flag
                 cellTelemetry(i) = strcmp(get_param(tmpHandle, 'DataLogging'), 'on');
 
@@ -254,7 +284,9 @@ classdef CAutoGenICD < handle
 
             % Compile model data for this subsystem
             charBDRoot = bdroot(charSubsysPath);
-            self.compileModel_(charBDRoot);
+            self.compileModel_();
+            % charSubsysPath(charSubsysPath,[],[],'compile'); 
+            evalin("caller", sprintf('%s([],[],[],''compile'');', self.charModelName));
 
             % Find inport/outport blocks
             cellInPorts  = find_system(charSubsysPath, 'SearchDepth', 1, 'BlockType', 'Inport');
@@ -262,78 +294,62 @@ classdef CAutoGenICD < handle
             cellAllPorts = [cellInPorts; cellOutPorts];
             dNumPorts    = numel(cellAllPorts);
 
+            % objTmpLineHandles = find_system( ...
+            %     charSubsysPath, ...
+            %     'FindAll',    'on', ...
+            %     'type',       'line');
+
             % Preallocate rows
             cellRows = cell(dNumPorts, 7);
             objModelWorkspace = get_param(charBDRoot, 'ModelWorkspace');
             dRow = 0;
 
-            for dPortIdx = 1:dNumPorts
+            % Loop over ports
+            for idx = 1:dNumPorts
 
-                charBlkPath = cellAllPorts{dPortIdx};
-                strPortHandles = get_param(charBlkPath, 'PortHandles');
-                charBlkType = get_param(charBlkPath, 'BlockType');
-
-                if strcmp(charBlkType, 'Inport')
-                    dLineHandle = get_param(strPortHandles.Outport, 'Line');
-                else
-                    dLineHandle = get_param(strPortHandles.Inport, 'Line');
+                blkPath = cellAllPorts{idx};
+                ph = get_param(blkPath, 'PortHandles');
+                blkType = get_param(blkPath, 'BlockType');
+                % Select port handle and init parameter
+                switch blkType
+                    case 'Inport'
+                        portH = ph.Outport;
+                        initParam = 'InitialValue';
+                    case 'Outport'
+                        portH = ph.Inport;
+                        initParam = 'InitialOutput';
+                    otherwise
+                        continue;
                 end
-
-                dRow = dRow + 1;
-                
-                % GEt and store data
-                % 1) Signal Name
-                charSignalName = get_param(dLineHandle, 'Name');
-                if isempty(charSignalName), charSignalName = '<unnamed>'; end
-                cellRows{dRow,1} = charSignalName;
-
-                % 2) Dimension
-                dDims = get_param(dLineHandle, 'CompiledPortDimensions');
-                charDimension = mat2str(dDims);
-                cellRows{dRow,2} = charDimension;
-
-                % 3) Data Type
-                charDataType = get_param(dLineHandle, 'CompiledPortDataType');
-                cellRows{dRow,3} = charDataType;
-
-                % 4) Telemetry
-                charDataLogging = get_param(dLineHandle, 'DataLogging');
-                bTelemetry = strcmp(charDataLogging, 'on');
-                cellRows{dRow,4} = bTelemetry;
-
-                % 5) Initialization
-                if strcmp(charBlkType, 'Outport')
-                    charInitVal = get_param(charBlkPath, 'InitialOutput');
-                    bInitialization = ~(isempty(charInitVal) || strcmp(charInitVal, '0'));
-                else
-                    bInitialization = true;
-                end
-                cellRows{dRow,5} = bInitialization;
-
-                % 6) Description (prefer Simulink.Signal object)
-                charDescription = '';
+                % Signal name
+                lineH = get_param(portH, 'Line');
+                sigName = get_param(lineH, 'Name');
+                if isempty(sigName), sigName = '<unnamed>'; end
+                rows{idx,1} = sigName;
+                % Dimension
+                dims = get_param(portH, 'CompiledPortDimensions');
+                rows{idx,2} = mat2str(dims);
+                % Data Type
+                rows{idx,3} = get_param(portH, 'CompiledPortDataType');
+                % Telemetry flag
+                rows{idx,4} = strcmp(get_param(portH, 'DataLogging'), 'on');
+                % Initialization flag
+                initVal = get_param(blkPath, initParam);
+                rows{idx,5} = ~(isempty(initVal) || strcmp(initVal, '0'));
+                % Description
                 try
-                    objSignal = objModelWorkspace.getVariable(charSignalName);
-                    if isa(objSignal, 'Simulink.Signal')
-                        charDescription = objSignal.Description;
-                    end
+                    desc = get_param(blkPath, 'Description');
                 catch
-                    % No matching signal object
+                    desc = '';
                 end
-
-                if isempty(charDescription)
-                    charDescription = get_param(charBlkPath, 'Description');
-                end
-
-                cellRows{dRow,6} = charDescription;
-
-                % 7) Notes
+                rows{idx,6} = desc;
+                % Notes
                 try
-                    charNotes = get_param(charBlkPath, 'Notes');
+                    note = get_param(blkPath, 'Notes');
                 catch
-                    charNotes = '';
+                    note = '';
                 end
-                cellRows{dRow,7} = charNotes;
+                rows{idx,7} = note;
             end
 
             % Build table and set column names
