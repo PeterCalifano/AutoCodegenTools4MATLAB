@@ -9,7 +9,6 @@ strTestStruct.strAttitudeData.ui8PolyDeg = uint8(8);
 strTestStruct.strAttitudeData.dPolyCoeff = zeros(4,10);
 strTestStruct.ui32MaxNumOfFrames = uint32(50);
 
-
 %% test_GenerateBusDefinitionFile
 charOutputFolder    = "./bus_autodefs";
 charBusName         = "testBus";
