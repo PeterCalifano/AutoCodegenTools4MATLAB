@@ -17,4 +17,4 @@ strModelData = objICDgenerator.getICDDataFromModel();
 eval(sprintf('%s([],[],[],''term'');', charModelName));
 
 % Export document
-objICDgenerator.exportICD("enumOutFormat", "xslx");
+objICDgenerator.exportICD("enumOutFormat", "xlsx");
