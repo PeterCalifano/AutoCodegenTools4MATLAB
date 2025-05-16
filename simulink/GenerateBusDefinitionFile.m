@@ -34,6 +34,8 @@ end
 % 13-05-2025    Pietro Califano & o4-mini-high      First prototype version.
 % 14-05-2025    Pietro Califano                     Upgrade to support in-place definition of buses and
 %                                                   examples, casting of default values, better header file. 
+% 16-05-2025    Pietro Califano                     Fix in-place definition and assignment of multi-nested
+%                                                   buses (top must assign all buses to caller)
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
@@ -184,13 +186,12 @@ for ui32Idx = 1:numel(cellFieldNames)
         end
 
         WriteBusFile(varVal, ...
-            charSubBus, ...
-            charOutputFolder, ...
-            objDefinedFieldsMap, ...
-            strTmpKwargs);
+                    charSubBus, ...
+                    charOutputFolder, ...
+                    objDefinedFieldsMap, ...
+                    strTmpKwargs);
 
-        % Write call to bus definition % TODO add an eval to move bus definition to workspace of "top
-        % caller"
+        % Write call to bus definition 
         if not(isfield(kwargs, "bStoreDefaultValues"))
             kwargs.bStoreDefaultValues = true;
         end
@@ -206,8 +207,15 @@ for ui32Idx = 1:numel(cellFieldNames)
         end
 
     end
-
 end
+
+% Write line to assign all children bus_<object> (dependency) to the caller workspace
+fprintf(i32Fid, "\nstrBusVars = whos('bus_*');\nfor id = 1:numel(strBusVars)\n\tassignin('caller', strBusVars(id).name, eval(strBusVars(id).name));\nend\n");
+if kwargs.bStoreDefaultValues
+    % Write default structs as well
+    fprintf(i32Fid, "\nstrDefaultsVars = whos('str*');\nfor id = 1:numel(strDefaultsVars)\n\tassignin('caller', strDefaultsVars(id).name, eval(strDefaultsVars(id).name));\nend\n");
+end
+
 fprintf(i32Fid, '\n');
 %%% Build the BusElement list
 fprintf(i32Fid, '\n%% Define %s bus object\n', charBusName);
