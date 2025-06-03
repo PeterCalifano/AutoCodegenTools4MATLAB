@@ -90,11 +90,11 @@ classdef CAutoGenICD < handle
                 charKey = matlab.lang.makeValidName(strrep(charSubsysPath, '/', '_'));
 
                 % Get data from SLX model
-                % if contains(struct2array(ver), 'Simulink Report Generator')
-                    % strModelData.(charKey) = self.extractSubsysData_(charSubsysPath);
-                % else
+                if contains(struct2array(ver), 'Simulink Report Generator')
+                    strModelData.(charKey) = self.extractSubsysData_(charSubsysPath);
+                else
                     strModelData.(charKey) = self.extractSubsysDataManual_(charSubsysPath);
-                % end
+                end
             end
 
             % Assign data for each subsystem
@@ -169,6 +169,8 @@ classdef CAutoGenICD < handle
             end
 
             % Import initialization data
+            % TODO this is required to evaluate the initialization script to the base workspace. Apparently
+            % SLX is limited in that bus defs must be in the base workspace or passed as data dictionaries.
             % if ~isempty(self.charInitScript)
             % 
             %     [~,~,charExt] = fileparts(self.charInitScript);
@@ -192,11 +194,29 @@ classdef CAutoGenICD < handle
             %     end
             % end
 
-            % Load model and compile (populate compiled port data)
-            load_system(self.charModelName);
-            % Equivalent to selecting Format->Port Data Types
+            % Load model and compile (populates compiled port data)
+            self.loadAllModels_(self, self.charModelName);
+
         end
 
+        function loadAllModels_(self, charTopModelName)
+            arguments
+                self                    % your class instance
+                charTopModelName char    % name of the .slx (without “.slx”)
+            end
+
+            % Load the top-level model
+            load_system(charTopModelName);
+
+            % Find _and_ load every referenced model in the hierarchy
+            [ cellModelschar, cellModelBlkschar ] = ...
+                find_mdlrefs(charTopModelName, KeepModelsLoaded=true);
+            
+            % Load all referenced models
+            for idx = 1:numel(cellModelschar)
+                load_system(cellModelschar{idx});
+            end
+        end
 
 
         function tableICD = extractSubsysData_(self, charSubsysPath)
@@ -208,17 +228,33 @@ classdef CAutoGenICD < handle
                 tableICD table
             end
 
-            % Use SystemIO reporter for summary
-            import slreportgen.report.SystemIO
+            import mlreportgen.report.*    % Exposes Chapter, Section, etc.
+            import slreportgen.report.*    % Exposes Report, SystemIO, etc.
 
-            objSysIO = SystemIO(charSubsysPath);
+            % Use SystemIO reporter for summary
+            objModelDefsIO = SystemIO(charSubsysPath);
 
             % Compile this subsystem
-            set_param(bdroot(charSubsysPath), 'SimulationCommand', 'update');
+            % set_param(bdroot(charSubsysPath), 'SimulationCommand', 'update');
+
+            charDocType = 'pdf';
+            objReport = slreportgen.report.Report("./testAutoICD.pdf", charDocType);
+            open(objReport);
+
+            % Add a chapter (optional, for structure)
+            objICDchapter  = Chapter("Interface Control Document");
+            add(objReport, objICDchapter);
+
+            % Add system I/O definitions
+            objModelDefsIO = slreportgen.report.SystemIO(charSubsysPath);
+            add(objReport, objModelDefsIO);
+
+            close(objReport);
+            rptview(objReport);   % Open in Word or specified viewer
 
             % Fetch input/output summary tables
-            tableIn  = objSysIO.getInputSummaryTable();
-            tableOut = objSysIO.getOutputSummaryTable();
+            tableIn  = objModelDefsIO.getInputSummaryTable();
+            tableOut = objModelDefsIO.getOutputSummaryTable();
 
             % Combine and ensure Description column
             tableICD = [tableIn; tableOut];
@@ -239,8 +275,8 @@ classdef CAutoGenICD < handle
             cellNotes           = repmat({''}, dNum, 1);
 
             % Retrieve port handles
-            handlesIn  = objSysIO.InputPortHandles;
-            handlesOut = objSysIO.OutputPortHandles;
+            handlesIn  = objModelDefsIO.InputPortHandles;
+            handlesOut = objModelDefsIO.OutputPortHandles;
             handlesAll = [handlesIn; handlesOut];
 
             % Loop each signal
