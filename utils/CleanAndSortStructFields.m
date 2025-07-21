@@ -5,7 +5,7 @@ function strOutputStruct = CleanAndSortStructFields(strInputStruct)
 %   All nested structs are cleaned recursively, and their fields are sorted alphabetically.
 
 arguments
-    strInputStruct (1,1) struct   % Input struct to clean and sort
+    strInputStruct struct   % Input struct to clean and sort
 end
 
 % Initialize output as a copy of the input
@@ -16,17 +16,48 @@ cellFieldNames = fieldnames(strInputStruct);
 
 % Loop through each field using a double-index
 for dIdx = 1:numel(cellFieldNames)
+    % Get field content
     charFieldName = cellFieldNames{dIdx};
     tmpFieldValue   = strInputStruct.(charFieldName);
 
     if isstruct(tmpFieldValue)
+        
         % Recursive cleaning for nested struct
-        strCleanedStruct = CleanAndSortStructFields(tmpFieldValue);
-        % Remove field if nested struct is empty
-        if isempty(fieldnames(strCleanedStruct))
-            strOutputStruct = rmfield(strOutputStruct, charFieldName);
+        ui32NumStructs = length(tmpFieldValue);
+
+        if ui32NumStructs == 1
+            strCleanedStruct = CleanAndSortStructFields(tmpFieldValue);
+            % Remove field if nested struct is empty
+            if isempty(fieldnames(strCleanedStruct))
+                strOutputStruct = rmfield(strOutputStruct, charFieldName);
+            else
+                strOutputStruct.(charFieldName) = strCleanedStruct;
+            end
+            
         else
-            strOutputStruct.(charFieldName) = strCleanedStruct;
+            % Handle struct arrays
+            cellCleanedStruct = cell(1, ui32NumStructs);
+            cellFieldNames_All = cell(1, ui32NumStructs);
+            for idS = 1:ui32NumStructs
+                cellCleanedStruct{idS} = CleanAndSortStructFields(tmpFieldValue(idS));
+                cellFieldNames_All{idS} = fieldnames(cellCleanedStruct{idS});
+            end
+
+            % Process cell to rebuild struct array
+            % Find the union of all field names
+            charAllCommonFields = unique( vertcat( cellFieldNames_All{:} ) );
+
+            % For each cleaned struct, add missing fields as empty
+            for idS = 1:ui32NumStructs
+
+                charThisNames   = cellFieldNames_All{idS};
+                bMissingMask    = ~ismember(charAllCommonFields, charThisNames);
+                
+                for charEmptyFieldName = charAllCommonFields(bMissingMask).'
+                    cellCleanedStruct{idS}.(charEmptyFieldName{1}) = [];
+                end
+            end
+            strOutputStruct.(charFieldName) = orderfields([cellCleanedStruct{:}]);
         end
 
     elseif isempty(tmpFieldValue)
