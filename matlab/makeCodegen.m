@@ -1,17 +1,19 @@
 function [] = makeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig)
 arguments
-    charTargetFcnName  {mustBeA(charTargetFcnName, ["char", "string"])}
+    charTargetFcnName  {mustBeText, mustBeA(charTargetFcnName, ["char", "string"])}
     cellInputArgs      {mustBeA(cellInputArgs, "cell")}
     objCoderConfig     {mustBeValidCodegenConfig(objCoderConfig)} = "mex";
 end
 %% PROTOTYPE
-% [] = makeCodegen(targetFcnName, args_cell, coder_config)
+% [] = makeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig)
 % -------------------------------------------------------------------------------------------------------------
 %% DESCRIPTION
 % Automatic code generation makers for mex and lib
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
-% in1 [dim] description
+% charTargetFcnName  {mustBeText, mustBeA(charTargetFcnName, ["char", "string"])}
+% cellInputArgs      {mustBeA(cellInputArgs, "cell")}
+% objCoderConfig     {mustBeValidCodegenConfig(objCoderConfig)} = "mex";
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
 % [-]
@@ -23,9 +25,6 @@ end
 % 02-04-2025    Pietro Califano     Minor reworking for basic usage.
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
-% [-]
-% -------------------------------------------------------------------------------------------------------------
-%% Future upgrades
 % [-]
 % -------------------------------------------------------------------------------------------------------------
 
