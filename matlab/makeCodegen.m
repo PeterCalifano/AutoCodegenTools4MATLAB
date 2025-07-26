@@ -99,7 +99,7 @@ end
 %% Validation function
 function [bValidInput] = mustBeValidCodegenConfig(inputVariable)
 
-bValidInput = mustBeA(inputVariable, ["string", "char", "coder_config"]) || ...
+bValidInput = mustBeA(inputVariable, ["string", "char", "coder.MexCodeConfig", "coder.EmbeddedCodeConfig", "coder.CodeConfig"]) || ...
     ( (isstring || ischar) && mustBeMember(inputVariable, ["mex", "lib", "exe", "dll"]) );
 
 end
