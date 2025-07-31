@@ -1,19 +1,23 @@
-function [] = makeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig)
+function [] = MakeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig, kwargs)
 arguments
     charTargetFcnName  {mustBeText, mustBeA(charTargetFcnName, ["char", "string"])}
     cellInputArgs      {mustBeA(cellInputArgs, "cell")}
     objCoderConfig     {mustBeValidCodegenConfig(objCoderConfig)} = "mex";
 end
+arguments
+    kwargs.charOutputDirectory string {mustBeA(kwargs.charOutputDirectory, ["string", "char"])} = './codegen'
+end
 %% PROTOTYPE
-% [] = makeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig)
+% [] = MakeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig, kwargs)
 % -------------------------------------------------------------------------------------------------------------
 %% DESCRIPTION
-% Automatic code generation makers for mex and lib
+% Automatic code generation maker for mex, lib and programs.
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
 % charTargetFcnName  {mustBeText, mustBeA(charTargetFcnName, ["char", "string"])}
 % cellInputArgs      {mustBeA(cellInputArgs, "cell")}
 % objCoderConfig     {mustBeValidCodegenConfig(objCoderConfig)} = "mex";
+% kwargs.charOutputDirectory string {mustBeA(kwargs.charOutputDirectory, ["string", "char"])} = './codegen'
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
 % [-]
@@ -23,11 +27,17 @@ end
 % 17-06-2024    Pietro Califano     Extended capability to lib, exe, dll.
 % 23-12-2024    Pietro Califano     Bug fixes due to mex config.
 % 02-04-2025    Pietro Califano     Minor reworking for basic usage.
-% 31-07-2025    Pietro Califano     Fix errors in validation function.
+% 31-07-2025    Pietro Califano     Fix errors in validation function; upgrade with kwargs.
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
 % -------------------------------------------------------------------------------------------------------------
+
+%% Handle inputs
+if not(isfolder(kwargs.charOutputDirectory))
+    mkdir(kwargs.charOutputDirectory)
+end
+mustBeFolder(kwargs.charOutputDirectory);
 
 %% Coder settings
 
@@ -62,6 +72,8 @@ if isstring(objCoderConfig) || ischar(objCoderConfig) || nargin < 3
             objCoderConfig.GenerateReport = true;
             objCoderConfig.LaunchReport = true;
             objCoderConfig.MATLABSourceComments = true;
+        otherwise
+            error('Invalid or unsupported configuration type %s.', objCoderConfig);
     end
 
 end
@@ -79,25 +91,30 @@ end
 
 %% Target function details
 % Get number of outputs
-numOutputs = nargout(charTargetFcnName);
-fprintf('\nGenerating src or compiled code from function %s...\n', string(charTargetFcnName));
+ui32NumOfOutputs = nargout(charTargetFcnName);
+fprintf('Generating src or compiled code from function %s...\n', string(charTargetFcnName));
 
 % Extract filename and add MEX indication
 [~, charTargetFcnName, ~] = fileparts(fullfile(charTargetFcnName));
-outputFcnName = strcat(charTargetFcnName, '_', upper(charBuildType));
+charOutputFcnName = strcat(charTargetFcnName, '_', upper(charBuildType));
 
 % numOfInputs; % ADD ASSERT to size of args_cell from specification functions
 
 %% CODEGEN CALL
 fprintf("---------------------- CODE GENERATION EXECUTION: STARTED ---------------------- \n\n")
 % Execute code generation
-codegenCommands = {strcat(charTargetFcnName,'.m'), "-config", objCoderConfig,...
-    "-args", cellInputArgs, "-nargout", numOutputs, "-o", outputFcnName};
-codegen(codegenCommands{:});
-fprintf("\n---------------------- CODE GENERATION EXECUTION: COMPLETED ----------------------\n")
+codegenCommands = {strcat(charTargetFcnName,'.m'), ...
+                    "-config", objCoderConfig,...
+                    "-args", cellInputArgs, ...
+                    "-nargout", ui32NumOfOutputs, ...
+                    "-o", charOutputFcnName};
+                    codegen(codegenCommands{:}, ...
+                    "-d", kwargs.charOutputDirectory);
+fprintf("---------------------- CODE GENERATION EXECUTION: COMPLETED ----------------------\n")
 end
 
-%% Validation function
+% AUXILIARY FUNCTIONS
+%%% Validation function
 function [bValidInput] = mustBeValidCodegenConfig(inputVariable)
 
 mustBeA(inputVariable, ["string", "char", "coder.MexCodeConfig", "coder.EmbeddedCodeConfig", "coder.CodeConfig"]);
