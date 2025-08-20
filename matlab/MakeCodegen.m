@@ -6,6 +6,7 @@ arguments
 end
 arguments
     kwargs.charOutputDirectory string {mustBeA(kwargs.charOutputDirectory, ["string", "char"])} = './codegen'
+    kwargs.bUseCmakeToolchain (1,1) logical = false;
 end
 %% PROTOTYPE
 % [] = MakeCodegen(charTargetFcnName, cellInputArgs, objCoderConfig, kwargs)
@@ -28,6 +29,7 @@ end
 % 23-12-2024    Pietro Califano     Bug fixes due to mex config.
 % 02-04-2025    Pietro Califano     Minor reworking for basic usage.
 % 31-07-2025    Pietro Califano     Fix errors in validation function; upgrade with kwargs.
+% 20-08-2025    Pietro Califano     Improve handling of target paths (-d arg); add cmake toolchain flag.
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
@@ -107,9 +109,19 @@ fprintf("---------------------- CODE GENERATION EXECUTION: STARTED -------------
 
 % Ensure that output folder exists
 mustBeFolder(kwargs.charOutputDirectory);
+
+% Replace by absolute path if any relative is given
 charWorkDir = cd(kwargs.charOutputDirectory);
-kwargs.charOutputDirectory = pwd; % Replace by absolute path if any relative is given
+kwargs.charOutputDirectory = pwd; 
+% Cleanup target folder before starting
+system('rm -rf *');
 cd(charWorkDir);
+
+% Change toolchain to CMake
+if kwargs.bUseCmakeToolchain
+    objCoderConfig.Toolchain = 'CMake';
+    objCoderConfig.GenCodeOnly = true;
+end
 
 % Execute code generation
 codegenCommands = {strcat(charTargetFcnName,'.m'), ...
