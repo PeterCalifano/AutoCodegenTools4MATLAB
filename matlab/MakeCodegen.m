@@ -96,9 +96,11 @@ fprintf('Generating src or compiled code from function %s...\n', string(charTarg
 
 % Extract filename and add MEX indication
 [~, charTargetFcnName, ~] = fileparts(fullfile(charTargetFcnName));
-charOutputFcnName = strcat(charTargetFcnName, '_', upper(charBuildType));
-
-% numOfInputs; % ADD ASSERT to size of args_cell from specification functions
+if not(strcmpi(charBuildType, "lib"))
+    charOutputFcnName = strcat(charTargetFcnName, '_', upper(charBuildType));
+else
+    charOutputFcnName = strcat(lower(charBuildType), charTargetFcnName);
+end
 
 %% CODEGEN CALL
 fprintf("---------------------- CODE GENERATION EXECUTION: STARTED ---------------------- \n\n")
