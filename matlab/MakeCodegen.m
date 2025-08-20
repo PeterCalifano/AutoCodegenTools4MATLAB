@@ -134,6 +134,10 @@ codegenCommands = {strcat(charTargetFcnName,'.m'), ...
                     "-nargout", ui32NumOfOutputs};
 
 codegen(codegenCommands{:});
+
+% Copy tmwtypes.h from /usr/local/MATLAB/RXXXX/extern/include to target folder
+copyfile(fullfile(matlabroot, "extern/include/tmwtypes.h"), kwargs.charOutputDirectory);
+
 fprintf("---------------------- CODE GENERATION EXECUTION: COMPLETED ----------------------\n")
 end
 
