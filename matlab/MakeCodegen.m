@@ -138,6 +138,9 @@ codegen(codegenCommands{:});
 % Copy tmwtypes.h from /usr/local/MATLAB/RXXXX/extern/include to target folder
 copyfile(fullfile(matlabroot, "extern/include/tmwtypes.h"), kwargs.charOutputDirectory);
 
+% Call postprocessor of CMakeLists.txt
+
+
 fprintf("---------------------- CODE GENERATION EXECUTION: COMPLETED ----------------------\n")
 end
 
