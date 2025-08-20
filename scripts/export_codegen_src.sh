@@ -51,4 +51,5 @@ shopt -s nullglob # Expand glob to nothing is no file with given extension exist
 
 cd $SRC_FOLDER
 rsync -av --update ./*.{h,c,cpp} "$THIS_SCRIPT_DIR/$TARGET_FOLDER/"
+rsync -avR --update ./CMakeLists.txt "$THIS_SCRIPT_DIR/$TARGET_FOLDER/"
 cd -
