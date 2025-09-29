@@ -38,6 +38,10 @@ end
 %% Handle inputs
 if not(isfolder(kwargs.charOutputDirectory))
     mkdir(kwargs.charOutputDirectory)
+else
+    % Cleanup folder recursively
+    rmdir(kwargs.charOutputDirectory, 's');
+    mkdir(kwargs.charOutputDirectory)
 end
 mustBeFolder(kwargs.charOutputDirectory);
 
