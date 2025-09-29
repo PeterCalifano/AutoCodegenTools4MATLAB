@@ -1,7 +1,7 @@
 function ValidateInputBus(strInputToModel, objExpectedBusDefinition)
 arguments
    strInputToModel          (1,1) {isstruct}
-   objExpectedBusDefinition (1,1) {isa(objExpectedBusDefinition, 'Simulink.Bus')}
+   objExpectedBusDefinition (1,1) {mustBeA(objExpectedBusDefinition, 'Simulink.Bus')}
 end
 %% SIGNATURE
 % ValidateInputBus(strInputToModel, objExpectedBusDefinition)
