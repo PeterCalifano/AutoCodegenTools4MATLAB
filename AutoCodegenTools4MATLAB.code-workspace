@@ -2,6 +2,12 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../../SLAM-repos/MSCKF_for_SpaceNav/matlab/RCS1_tailoring"
+		},
+		{
+			"path": "../../SLAM-repos/MSCKF_for_SpaceNav/matlab"
 		}
 	],
 	"settings": {}
