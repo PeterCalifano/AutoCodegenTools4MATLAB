@@ -60,12 +60,12 @@ echo -e "\033[34mCopying files src and headers: $SRC_FOLDER --> $TARGET_FOLDER\0
 shopt -s nullglob # Expand glob to nothing is no file with given extension exists
 
 cd $SRC_FOLDER
-rsync -av --update ./*.{h,c,cpp} "$THIS_SCRIPT_DIR/$TARGET_FOLDER/"
+rsync -av --update ./*.{h,c,cpp} "$TARGET_FOLDER/"
 
 # If CMakeLists.txt exists, copy it too
 if [ -f "./CMakeLists.txt" ]; then
     echo -e "\033[34mCopying CMakeLists.txt to $TARGET_FOLDER\033[0m"
-    rsync -avR --update ./CMakeLists.txt "$THIS_SCRIPT_DIR/$TARGET_FOLDER/"
+    rsync -avR --update ./CMakeLists.txt "$TARGET_FOLDER/"
 else
     echo -e "\033[33mNo CMakeLists.txt found in source folder.\033[0m"
 fi
