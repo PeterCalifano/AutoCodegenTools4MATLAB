@@ -8,8 +8,8 @@ THIS_SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 cd "$THIS_SCRIPT_DIR"
 
 # Default values
-TARGET_FOLDER=../future-onboard-sw/codegen/nav_filter/src
-SRC_FOLDER_NAME=filter_step
+TARGET_FOLDER=""
+SRC_FOLDER_NAME=""
 clean_target_folder_first=0
 
 # Get options from shell
@@ -26,9 +26,19 @@ while getopts ":s:t:c" opt; do
   esac
 done
 
+# Check if source and target folder names are given
+if [ -z "$SRC_FOLDER_NAME" ] || [ -z "$TARGET_FOLDER" ]; then
+  echo -e "\033[31mSource and target folder names must be provided.\033[0m"
+  echo "Usage: $0 -s <source_folder_name> -t <target_folder> [-c]"
+  echo "  -s : Name of the source folder"
+  echo "  -t : Path to the target folder"
+  echo "  -c : Optional flag to clean target folder before copying"
+  exit 1
+fi
+
 # Check source folder exists
-if [ ! -d "cxx/$SRC_FOLDER_NAME" ]; then
-  echo -e "\033[31mSource folder does not exist: cxx/$SRC_FOLDER_NAME\033[0m"
+if [ ! -d "$SRC_FOLDER_NAME" ]; then
+  echo -e "\033[31mSource folder does not exist: $SRC_FOLDER_NAME\033[0m"
   exit 1
 fi
 
@@ -43,7 +53,7 @@ if [ ! -d "$TARGET_FOLDER" ]; then
   mkdir -p "$TARGET_FOLDER"
 fi
 
-SRC_FOLDER=cxx/$SRC_FOLDER_NAME
+SRC_FOLDER=$SRC_FOLDER_NAME
 echo -e "\033[34mCopying files src and headers: $SRC_FOLDER --> $TARGET_FOLDER\033[0m"
 
 # Copy all headers .h and src .cpp or .c
