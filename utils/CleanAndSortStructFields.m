@@ -5,7 +5,7 @@ function strOutputStruct = CleanAndSortStructFields(strInputStruct)
     %   All nested structs are cleaned recursively, and their fields are sorted alphabetically.
 
     arguments
-        strInputStruct (1,:) {CBaseDatastruct.validateObjectOrStruct_(strInputStruct)}   % Input struct to clean and sort
+        strInputStruct (1,:) struct   % Input struct to clean and sort
     end
 
     % Initialize output as a copy of the input

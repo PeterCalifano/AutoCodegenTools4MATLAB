@@ -1,13 +1,13 @@
 function GenerateBusDefinitionFile(strInput, charBusName, charOutputFolder, kwargs)
 arguments
-    strInput         {isstruct}
+    strInput         (1,:) struct
     charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
     charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])} = './bus_autodefs'
 end
 arguments
-    kwargs.bStoreDefaultValues          {islogical, isscalar} = true
-    kwargs.bDefineBusesInPlace          {islogical, isscalar} = false;
-    kwargs.charHeaderDescription string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
+    kwargs.bStoreDefaultValues          (1,1) logical = true
+    kwargs.bDefineBusesInPlace          (1,1) logical = false;
+    kwargs.charHeaderDescription        string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
 end
 %% DESCRIPTION
 % Code generator function for bus definition files with default values definition and in-place evaluation.
@@ -17,14 +17,14 @@ end
 % -------------------------------------------------------------------------------------------------------------
 %% INPUT
 % arguments
-%     strInput         {isstruct}
+%     strInput         (1,:) struct
 %     charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
 %     charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])} = './bus_autodefs'
 % end
 % arguments
-%     kwargs.bStoreDefaultValues          {islogical, isscalar} = true
-%     kwargs.bDefineBusesInPlace          {islogical, isscalar} = false;
-%     kwargs.charHeaderDescription string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
+%     kwargs.bStoreDefaultValues          (1,1) logical = true
+%     kwargs.bDefineBusesInPlace          (1,1) logical = false;
+%     kwargs.charHeaderDescription        string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
 % end
 % -------------------------------------------------------------------------------------------------------------
 %% OUTPUT
@@ -40,9 +40,8 @@ end
 %% DEPENDENCIES
 % [-]
 % -------------------------------------------------------------------------------------------------------------
-%% Future upgrades
-% [-]
-% -------------------------------------------------------------------------------------------------------------
+
+
 %% Function code
 
 % Create output folder if needed
