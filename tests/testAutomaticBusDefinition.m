@@ -45,7 +45,7 @@ charBusName         = "testBusWithStructArray";
 GenerateBusDefinitionFile(strTestStructWithStructArray, ...
                         charBusName, ...
                         charOutputFolder, ...
-                        "bCleanupBeforeGenerati on", true, ...
+                        "bCleanupBeforeGeneration", true, ...
                         "bDefineBusesInPlace", true);
 
 run(sprintf('%s/BusDef_%s.m', charOutputFolder, charBusName));
@@ -66,5 +66,26 @@ GenerateBusDefinitionFile(strInput, ...
 
 strInput.strAttitudeData = orderfields(strInput.strAttitudeData); % Order fields of nested struct
 compareStructures(testBusWithExample, orderfields(strInput));
+
+return
+
+%% test_GenerateBusDefinitionFile_withDefaults_structArrays
+addpath("/home/peterc/devDir/projects-DART/rcs-1-gnc-simulator/script/config");
+load("test_data/test_data_bus_definition.mat")
+
+charOutputFolder    = "./bus_autodefs";
+charBusName         = "testBusWithExample";
+strInput            = strTestStruct;
+charTestDescript    = "This is a sample description for the header.";
+
+[strFilterMutabConfig, strDynParams, strMeasModelParams, strMeasBus] = configure_filter_RCS1(strFilterConstConfig, ...
+                                                                                        gnc_configuration_bus, ...
+                                                                                        gnc_data_input_bus, ...
+                                                                                        "bWriteBusDefs", true, ...
+                                                                                        "bStrictMode", false);
+
+% Test call of strDynParams bus definition function
+[objBusDef, strDefault] = BusDef_strDynParams();
+
 
 return
