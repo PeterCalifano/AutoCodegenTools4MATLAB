@@ -5,6 +5,7 @@ arguments
     charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])} = './bus_autodefs'
 end
 arguments
+    kwargs.bCleanupBeforeGeneration     (1,1) logical = false
     kwargs.bStoreDefaultValues          (1,1) logical = true
     kwargs.bDefineBusesInPlace          (1,1) logical = false;
     kwargs.charHeaderDescription        string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
@@ -47,6 +48,13 @@ end
 % Create output folder if needed
 if ~isfolder(charOutputFolder)
     mkdir(charOutputFolder);
+elseif kwargs.bCleanupBeforeGeneration
+    try
+        rmdir(charOutputFolder, "s");
+        mkdir(charOutputFolder);
+    catch ME
+        warning('Cleanup of output folder failed with error: %s.', string(ME.message));
+    end
 end
 
 % Track which buses have been generated using a map
@@ -266,14 +274,15 @@ fprintf(i32Fid, 'Bus.Elements = elems;\n\n');
 if kwargs.bStoreDefaultValues
 
     fprintf(i32Fid, '%% Default struct initialization\n');
-    fprintf(i32Fid, 'strDefault = struct();\n');
+    fprintf(i32Fid, 'try\n');
+    fprintf(i32Fid, '\tstrDefault = struct();\n');
 
     for ui32Idx = 1:numel(cellFieldNames)
         
         charField = cellFieldNames{ui32Idx};
     
         % Check if parent is an array
-        if isfield(kwargs,"strParentStruct")
+        if isfield(kwargs, "strParentStruct")
             ui32ArraySize = length(kwargs.strParentStruct);
         else
             ui32ArraySize = 1;
@@ -293,13 +302,13 @@ if kwargs.bStoreDefaultValues
                 if isstruct(varVal) || isobject(varVal)
                     charSubBus = sprintf('%s_%s', charBusName, charField);
 
-                    if numel(varVal) == 1
-                        fprintf(i32Fid, 'strDefault(%d).%s = default_%s;\n', idArray, charField, charSubBus);
+                    if isscalar(varVal)
+                        fprintf(i32Fid, '\tstrDefault(%d).%s = default_%s;\n', idArray, charField, charSubBus);
 
                     elseif numel(varVal) > 1
-
+                        % Handle struct arrays defaults
                         for idVal = 1:numel(varVal)
-                            fprintf(i32Fid, 'strDefault(%d).%s(%d) = default_%s;\n', idArray, charField, idVal, sprintf('%s(%d)', charSubBus, idVal) );
+                            fprintf(i32Fid, '\tstrDefault(%d).%s(%d) = default_%s;\n', idArray, charField, idVal, sprintf('%s(%d)', charSubBus, idVal) );
                         end
 
                     else
@@ -309,15 +318,21 @@ if kwargs.bStoreDefaultValues
                 else
                     charDatatype = class(varVal);
                     charValStr = FormatValue(varVal);
-                    fprintf(i32Fid, 'strDefault(%d).%s = cast(%s, ''%s'');\n', idArray, charField, charValStr, charDatatype);
+                    fprintf(i32Fid, '\tstrDefault(%d).%s = cast(%s, ''%s'');\n', idArray, charField, charValStr, charDatatype);
                 end
             end
         end
     end
 
     % Order fields
-    fprintf(i32Fid, 'strDefault = orderfields(strDefault);\n');
+    fprintf(i32Fid, '\tstrDefault = orderfields(strDefault);\n');
+
+    % Catch
+    fprintf(i32Fid, 'catch ME\n');
+    fprintf(i32Fid, '\twarning("Automatic default assignment failed due to error: %s", ME.message);\n', "%s");
     fprintf(i32Fid, '\n');
+    fprintf(i32Fid, 'end\n');
+
 end
 
 % Generate assignin call to evaluate to caller
