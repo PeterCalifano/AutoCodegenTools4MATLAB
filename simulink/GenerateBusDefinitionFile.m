@@ -9,6 +9,7 @@ arguments
     kwargs.bStoreDefaultValues          (1,1) logical = true
     kwargs.bDefineBusesInPlace          (1,1) logical = false;
     kwargs.charHeaderDescription        string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
+    kwargs.bStrictMode                  (1,1) logical = true;
 end
 %% DESCRIPTION
 % Code generator function for bus definition files with default values definition and in-place evaluation.
@@ -35,8 +36,9 @@ end
 % 13-05-2025    Pietro Califano & o4-mini-high      First prototype version.
 % 14-05-2025    Pietro Califano                     Upgrade to support in-place definition of buses and
 %                                                   examples, casting of default values, better header file. 
-% 16-05-2025    Pietro Califano                     Fix in-place definition and assignment of multi-nested
-%                                                   buses (top must assign all buses to caller)
+% 16-05-2025    Pietro Califano                     [MAJOR] Fix in-place definition and assignment of multi-nested
+%                                                   buses (top must assign all buses to caller). Extend to fully 
+%                                                   support struct arrays with defaults
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
@@ -78,17 +80,12 @@ end
 %% Core function: bus definition code-generator
 function WriteBusFile(varStruct, charBusName, charOutputFolder, objDefinedFieldsMap, kwargs)
 arguments
-    varStruct        {isstruct}
+    varStruct        struct
     charBusName      (1,1) string {mustBeA(charBusName, ["string", "char"])}
     charOutputFolder (1,1) string {mustBeA(charOutputFolder, ["string", "char"])}
     objDefinedFieldsMap
     kwargs
 end
-% arguments
-%     kwargs.bStoreDefaultValues          {islogical, isscalar} = true
-%     kwargs.bDefineBusesInPlace          {islogical, isscalar} = false;
-%     kwargs.charHeaderDescription string {mustBeA(kwargs.charHeaderDescription, ["string", "char"])} = ""
-% end
 
 % Avoid regenerating the same bus
 if objDefinedFieldsMap.isKey(charBusName)
@@ -99,6 +96,9 @@ objDefinedFieldsMap(charBusName) = true;
 
 % Alphabetically sorted fields
 cellFieldNames = fieldnames(orderfields(varStruct));
+
+% Detect struct array and prevent fields elimination if any is not empty
+bIsStructArray = numel(varStruct) > 1;
 
 % Open definition file
 charFcnPrefix = "BusDef";
@@ -179,6 +179,10 @@ for ui32Idx = 1:numel(cellFieldNames)
     charField = cellFieldNames{ui32Idx};
     varVal    = varStruct.(charField);
 
+    if numel(varStruct) > 1
+        [~, ~, varVal] = DetectNonEmptyInStructArray(varStruct, charField, varVal, kwargs);
+    end
+
     if isstruct(varVal) || isobject(varVal)
 
         charSubBus = sprintf('%s_%s', charBusName, charField);
@@ -190,6 +194,7 @@ for ui32Idx = 1:numel(cellFieldNames)
         % Add skip for struct arrays
         if numel(varStruct) > 1
             strTmpKwargs.strParentStruct = varStruct;
+            bIsStructArray = true;
         end
 
         WriteBusFile(varVal, ...
@@ -232,6 +237,11 @@ for ui32Idx = 1:numel(cellFieldNames)
 
     charField = cellFieldNames{ui32Idx};
     varVal    = varStruct.(charField);
+
+    if bIsStructArray
+        % Detect if any struct of the array has a value for the field
+        [~, ~, varVal] = DetectNonEmptyInStructArray(varStruct, charField, varVal, kwargs);
+    end
 
     if not(isempty(varVal))
         fprintf(i32Fid, '%% Bus element %s definition\n', charField);
@@ -282,8 +292,12 @@ if kwargs.bStoreDefaultValues
         charField = cellFieldNames{ui32Idx};
     
         % Check if parent is an array
-        if isfield(kwargs, "strParentStruct")
-            ui32ArraySize = length(kwargs.strParentStruct);
+        if isfield(kwargs, "strParentStruct") || numel(varStruct) > 1
+            if isfield(kwargs, "strParentStruct")
+                ui32ArraySize = length(kwargs.strParentStruct);
+            else
+                ui32ArraySize = numel(varStruct);
+            end
         else
             ui32ArraySize = 1;
             varVal    = varStruct.(charField);
@@ -292,9 +306,14 @@ if kwargs.bStoreDefaultValues
         for idArray = 1:ui32ArraySize
             % Get value from the corresponding struct
             if ui32ArraySize > 1
-                charCurrentStructFieldName = split(charBusName, '_');
-                charCurrentStructFieldName = charCurrentStructFieldName(end);
-                varVal    = kwargs.strParentStruct(idArray).(charCurrentStructFieldName).(charField);
+
+                if isfield(kwargs, "strParentStruct")
+                    charCurrentStructFieldName = split(charBusName, '_');
+                    charCurrentStructFieldName = charCurrentStructFieldName(end);
+                    varVal    = kwargs.strParentStruct(idArray).(charCurrentStructFieldName).(charField);
+                else
+                    varVal = varStruct(idArray).(charField);
+                end
             end
         
             if not(isempty(varVal))
@@ -320,6 +339,8 @@ if kwargs.bStoreDefaultValues
                     charValStr = FormatValue(varVal);
                     fprintf(i32Fid, '\tstrDefault(%d).%s = cast(%s, ''%s'');\n', idArray, charField, charValStr, charDatatype);
                 end
+            else
+                fprintf(i32Fid, '\tstrDefault(%d).%s = [];\n', idArray, charField);
             end
         end
     end
@@ -376,5 +397,47 @@ function charVal = FormatValue(varVal)
     end
 end
 
+% Non empty value detection in struct arrays
+function [bIsStructArray, bIsFieldEmpty, varVal] = DetectNonEmptyInStructArray(varStruct, charField, varVal, kwargs)
+arguments
+    varStruct
+    charField (1,:) char {mustBeText}
+    varVal 
+    kwargs    (1,1) struct
+end
+bIsStructArray = true;
+bIsFieldEmpty = false(1, numel(varStruct));
 
+dSizeToEnforce = [];
+dTypeToEnforce = [];
+
+for idS = 1:numel(varStruct)
+    varFieldValue = varStruct(idS).(charField);
+    bIsFieldEmpty(idS) = isempty(varFieldValue);
+
+    if not(isempty(dSizeToEnforce))
+        % Enforce type and size uniqueness
+        assert( all(dSizeToEnforce == size(varFieldValue)) || (isempty(varFieldValue) && not(kwargs.bStrictMode) ), ...
+            'ERROR: detected heterogeneous field value in struct array field. Not allowed for C/C++ code generation.');
+    elseif not(bIsFieldEmpty(idS))
+        % Else get first non empty
+        dSizeToEnforce = size(varVal);
+    end
+
+    if not(isempty(dTypeToEnforce))
+        % Enforce type uniqueness
+        assert( strcmpi(dTypeToEnforce, class(varFieldValue)) || (isempty(varFieldValue) && not(kwargs.bStrictMode)), ...
+            'ERROR: detected heterogeneous data type in struct array field. Not allowed for C/C++ code generation.');
+    elseif not(bIsFieldEmpty(idS))
+        % Else get first non empty
+        dTypeToEnforce = class(varVal);
+    end
+
+    % Get representative value if not empty
+    if not(bIsFieldEmpty(idS))
+        varVal = varFieldValue;
+    end
+end
+
+end
 % Bus loading function
