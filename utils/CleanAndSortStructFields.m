@@ -25,7 +25,7 @@ function strOutputStruct = CleanAndSortStructFields(strInputStruct)
 
             if isstruct(varTmpFieldValue)
                 % Recursive cleaning for nested struct
-                strCleanedStruct = CBaseDatastruct.CleanAndSortStructFields(varTmpFieldValue);
+                strCleanedStruct = CleanAndSortStructFields(varTmpFieldValue);
 
                 % Remove field if nested struct is empty
                 if isempty(fieldnames(strCleanedStruct))
