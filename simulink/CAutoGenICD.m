@@ -6,9 +6,9 @@ classdef CAutoGenICD < handle
     % -------------------------------------------------------------------------------------------------------------
     %% CHANGELOG
     % 15-05-2025    Pietro Califano & o4-mini-high    First prototype implementation.
-    % 04-10-2025    Pietro Califano & GPT-5           Add methods to define table of variables from bus
-    %                                                 definitions, apply a fixed template and export to 
-    %                                                 tabular format
+    % 04-10-2025    Pietro Califano & GPT-5           [MAJOR] Add methods to define table of variables from 
+    %                                                 bus definitions, apply a fixed template and export to 
+    %                                                 tabular format file
     % -------------------------------------------------------------------------------------------------------------
     %% METHODS
     % See methods()
@@ -23,7 +23,7 @@ classdef CAutoGenICD < handle
     % [-]
     % -------------------------------------------------------------------------------------------------------------
 
-    properties
+    properties (SetAccess = protected, GetAccess = public)
         charModelName       % SLX model file or model name (char)
         cellSubsystemPaths  % Cell array of subsystem paths (cell)
         charInitScript      % Initialization script path (char)
@@ -535,9 +535,9 @@ classdef CAutoGenICD < handle
             end
         end
 
-        function tableICD = ApplyTableTemplate(tableICD, enumColumns)
-            arguments
-                tableICD
+        function cellTablesICD = ApplyTableTemplate(varTablesICD, enumColumns)
+            arguments 
+                varTablesICD {mustBeA(varTablesICD, ["table", "cell"])}
                 enumColumns (1,:) EnumColumnICD = [EnumColumnICD.SignalName, ...
                                                     EnumColumnICD.Dimensions, ...
                                                     EnumColumnICD.DataType, ...
@@ -547,31 +547,43 @@ classdef CAutoGenICD < handle
                                                     EnumColumnICD.Notes];
             end
             
-            % Build new table with the enumColumns input
-            dNumRows = height(tableICD);
-            cellInCols = string(tableICD.Properties.VariableNames);
-
-
-            % Create ordered output with only requested columns
-            tableTmpOut = table;
-
-            for dIdx = 1:numel(enumColumns)
-
-                % Get name of column from enumeration entry
-                charColName = string(enumColumns(dIdx));
-
-                if ismember(charColName, cellInCols)
-                    % Preserve existing column
-                    tableTmpOut.(char(charColName)) = tableICD.(char(charColName));
-                else
-                    % Add missing column initialized with empty field
-                    tableTmpOut.(char(charColName)) = EnumColumnICD.GetDefaultValue(char(charColName), dNumRows);
-                end
-
+            if not(iscell(varTablesICD))
+                varTablesICD = {varTablesICD};
             end
 
-            % Return table with requested columns in order
-            tableICD = tableTmpOut;
+            % Initialize output
+            cellTablesICD = varTablesICD;
+            
+            % Process each table separately
+            for idC = 1:length(varTablesICD)
+
+                tableTmp_ = cellTablesICD{idC};
+
+                % Build new table with the enumColumns input
+                dNumRows = height(tableTmp_);
+                cellInCols = string(tableTmp_.Properties.VariableNames);
+
+                % Create ordered output with only requested columns
+                tableTmpOut = table();
+
+                for dIdx = 1:numel(enumColumns)
+
+                    % Get name of column from enumeration entry
+                    charColName = string(enumColumns(dIdx));
+
+                    if ismember(charColName, cellInCols)
+                        % Preserve existing column
+                        tableTmpOut.(char(charColName)) = tableTmp_.(char(charColName));
+                    else
+                        % Add missing column initialized with empty field
+                        tableTmpOut.(char(charColName)) = EnumColumnICD.GetDefaultValue(char(charColName), dNumRows);
+                    end
+
+                end
+
+                % Return table with requested columns in order
+                cellTablesICD{idC} = tableTmpOut;
+            end
         end
 
         function charOutFile = ExportTablesToFile(charOutFile, ...
