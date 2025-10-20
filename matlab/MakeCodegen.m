@@ -46,7 +46,6 @@ end
 mustBeFolder(kwargs.charOutputDirectory);
 
 %% Coder settings
-
 if isstring(objCoderConfig) || ischar(objCoderConfig) || nargin < 3
 
     % TODO consider to add common in one single call, and only specify those important for the specific one
@@ -94,6 +93,16 @@ end
 % IF PARALLEL REQUIRED
 % coder_config.EnableAutoParallelization = true;
 % coder_config.EnableOpenMP = true;
+
+% Enforce no precompiled libraries if available
+try
+    objCoderConfig.UsePrecompiledLibraries = 'Avoid';
+catch ME
+    warning('Coder option: UsePrecompiledLibraries may not be available. This has been introduced in version R2024b.')
+end
+
+% Change host computer to specific architecture
+[objCoderConfig] = DetectAndSpecifyHostArch(objCoderConfig);
 
 %% Target function details
 % Get number of outputs
