@@ -350,7 +350,7 @@ if kwargs.bStoreDefaultValues
 
     % Catch
     fprintf(i32Fid, 'catch ME\n');
-    fprintf(i32Fid, '\twarning("Automatic default assignment failed due to error: %s", ME.message);\n', "%s");
+    fprintf(i32Fid, '\twarning("Automatic default assignment failed due to error: %s", string(ME.message));\n', "%s");
     fprintf(i32Fid, '\n');
     fprintf(i32Fid, 'end\n');
 
