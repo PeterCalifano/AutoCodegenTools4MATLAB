@@ -22,6 +22,13 @@ strStructArray(3).dAdditionalVarToTryToBreak = 0.0;
 strTestStructWithStructArray = struct();
 strTestStructWithStructArray.strStructArray = strStructArray;
 strTestStructWithStructArray.bAnotherBool = true;
+
+strTestStructWithStructArrayOnRoot(1).strStructArray = strStructArray(1:2);
+strTestStructWithStructArrayOnRoot(1).bFlag = true;
+
+strTestStructWithStructArrayOnRoot(2).strStructArray = strStructArray(2:3);
+strTestStructWithStructArrayOnRoot(2).bFlag = false;
+
 return
 
 %% test_GenerateBusDefinitionFile_basic
@@ -36,7 +43,6 @@ GenerateBusDefinitionFile(strTestStruct, ...
 
 % Call bus definition to check usage
 run(sprintf('%s/BusDef_%s.m', charOutputFolder, charBusName));
-
 return
 %% test_GenerateBusDefinitionFile_withStructArray
 charOutputFolder    = "./bus_autodefs_struct_array";
@@ -51,6 +57,24 @@ GenerateBusDefinitionFile(strTestStructWithStructArray, ...
 run(sprintf('%s/BusDef_%s.m', charOutputFolder, charBusName));
 
 return
+
+%% test_GenerateBusDefinitionFile_withDefaults_structArraysOnRoot
+charOutputFolder    = "./bus_autodefs_struct_array";
+charBusName         = "testBusWithStructArrayOnRoot";
+
+GenerateBusDefinitionFile(strTestStructWithStructArrayOnRoot, ...
+                        charBusName, ...
+                        charOutputFolder, ...
+                        "bCleanupBeforeGeneration", true, ...
+                        "bDefineBusesInPlace", true);
+
+charBusDefFilepath = sprintf('%s/BusDef_%s.m', charOutputFolder, charBusName);
+run(charBusDefFilepath);
+
+[objBus, strDefault] = feval(sprintf("BusDef_%s", charBusName));
+compareStructures(testBusWithExample, CleanAndSortStructFields(strInput));
+return
+
 %% test_GenerateBusDefinitionFile_withDefaults
 charOutputFolder    = "./bus_autodefs";
 charBusName         = "testBusWithExample";
