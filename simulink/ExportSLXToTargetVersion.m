@@ -3,14 +3,16 @@ function [bSuccessfulExport] = ExportSLXToTargetVersion(charSlxModelNameSrc, ...
                                                     charVariantVerMATLAB, ...
                                                     charExportPath, ...
                                                     charSlxModelNameTarget, ...
-                                                    bCloseSystemAfterExport)
+                                                    bCloseSystemAfterExport, ...
+                                                    bUseDestructiveModelReplace)
 arguments
-    charSlxModelNameSrc     (1,:) char
-    charYearVerMATLAB       (1,:) char {mustBeMember(charYearVerMATLAB, ["2019", "2020", "2021", "2022", "2023", "2024"])}
-    charVariantVerMATLAB    (1,1) char {mustBeMember(charVariantVerMATLAB, ["a", "b"])}
-    charExportPath          (1,:) char = "./converted_models/"
-    charSlxModelNameTarget  (1,:) char = ""
-    bCloseSystemAfterExport  (1,1) logical = true
+    charSlxModelNameSrc         (1,:) char
+    charYearVerMATLAB           (1,:) char {mustBeMember(charYearVerMATLAB, ["2019", "2020", "2021", "2022", "2023", "2024"])}
+    charVariantVerMATLAB        (1,1) char {mustBeMember(charVariantVerMATLAB, ["a", "b"])}
+    charExportPath              (1,:) char = "./converted_models/"
+    charSlxModelNameTarget      (1,:) char = ""
+    bCloseSystemAfterExport     (1,1) logical = true
+    bUseDestructiveModelReplace    (1,1) logical = false
 end
 
 % Initialize
@@ -44,13 +46,18 @@ try
         close_system(charSlxModelNameSrc, 0);
     end
 
-    % Move exported file to target folder
-    if ~isfolder(charExportPath)
-        mkdir(charExportPath);
+    if not(bUseDestructiveModelReplace)
+        % Move exported file to target folder
+        if ~isfolder(charExportPath)
+            mkdir(charExportPath);
+        end
+        
+        movefile(charSlxModelNameTarget, fullfile(charExportPath, charSlxModelNameTarget));
+    else
+        warning("Destructive model replace is enabled. Export path ignored. The exported model will overwrite the source model.");
+        movefile(charSlxModelNameTarget, charSlxModelNameSrc);
     end
-    
-    movefile(charSlxModelNameTarget, fullfile(charExportPath, charSlxModelNameTarget));
-    
+
     bSuccessfulExport = true;
     fprintf("Export successful. Exported model saved to %s\n", fullfile(charExportPath, charSlxModelNameTarget));
     return;
