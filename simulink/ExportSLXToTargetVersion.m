@@ -22,6 +22,28 @@ try
     % Compose and validate version name
     charTargetVerMATLAB = strcat("R", charYearVerMATLAB + charVariantVerMATLAB);
     
+    % Assert that current MATLAB version is newer than target
+    charCurrentVerMATLAB = char(matlabRelease('MATLAB').Release);
+
+    % Extract year and variant from current version
+    charCurrentYearMATLAB = extractBetween(charCurrentVerMATLAB, 2, 5);
+    charCurrentVariantMATLAB = extractAfter(charCurrentVerMATLAB, 5);
+
+    % Compare versions
+    if str2double(charCurrentVerMATLAB) < str2double(charYearVerMATLAB)
+        error('Current MATLAB version %s is older than target version %s. Export not possible.', ...
+            charCurrentVerMATLAB, charYearVerMATLAB);
+    
+    elseif str2double(charCurrentVerMATLAB) == str2double(charYearVerMATLAB)
+        % Compare variant
+        if int32(lower(charCurrentVariantMATLAB)) < int32(lower(charVariantVerMATLAB))
+            error('Current MATLAB variant %s is older than target variant %s for year %s. Export not possible.', ...
+                charCurrentVariantMATLAB, charVariantVerMATLAB, charYearVerMATLAB);
+        end
+
+    end
+
+    
     % Compose export name if not given
     if isempty(charSlxModelNameTarget) || strcmpi(charSlxModelNameTarget, "")
         charSlxModelNameTarget = strcat(charSlxModelNameSrc, "_" + charTargetVerMATLAB + ".slx");
