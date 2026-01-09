@@ -81,7 +81,7 @@ end
 %%%
 function charRepoRoot = GetRepoRoot_()
 % Resolve name of root repository
-charThisScriptPath = mfilename('fullpath');
+charThisScriptPath = fileparts(mfilename('fullpath'));
 charRepoRoot = fullfile(fileparts(charThisScriptPath), "..", "..");
 
 cd(charRepoRoot);

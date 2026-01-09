@@ -23,7 +23,7 @@ try
     charTargetVerMATLAB = strcat("R", charYearVerMATLAB, charVariantVerMATLAB);
     
     % Assert that current MATLAB version is newer than target
-    charCurrentVerMATLAB = char(matlabRelease('MATLAB').Release);
+    charCurrentVerMATLAB = char(matlabRelease.Release);
 
     % Extract year and variant from current version
     charCurrentYearMATLAB = extractBetween(charCurrentVerMATLAB, 2, 5);
