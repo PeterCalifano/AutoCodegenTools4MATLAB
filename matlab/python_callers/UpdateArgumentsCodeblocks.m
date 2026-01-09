@@ -80,10 +80,20 @@ end
 % AUXILIARY FUNCTIONS
 %%%
 function charRepoRoot = GetRepoRoot_()
-charRepoRoot = mfilename('fullpath');
+% Resolve name of root repository
+charThisScriptPath = mfilename('fullpath');
+charRepoRoot = fullfile(fileparts(charThisScriptPath), "..", "..");
 
+cd(charRepoRoot);
+charTestPath = pwd();
+cd(charThisScriptPath);
 
-charRepoRoot = fileparts(charRepoRoot);
+% Check repo name
+[~, charTestName] = fileparts(charTestPath); 
+
+if not(strcmpi(charTestName, "autocodegentools4matlab"))
+    warning('Root directory has name %s but expected %s', lower(charTestName), "autocodegentools4matlab")
+end
 
 end
 
