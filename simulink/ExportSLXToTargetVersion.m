@@ -20,7 +20,7 @@ bSuccessfulExport = false;
 
 try
     % Compose and validate version name
-    charTargetVerMATLAB = strcat("R", charYearVerMATLAB + charVariantVerMATLAB);
+    charTargetVerMATLAB = strcat("R", charYearVerMATLAB, charVariantVerMATLAB);
     
     % Assert that current MATLAB version is newer than target
     charCurrentVerMATLAB = char(matlabRelease('MATLAB').Release);
