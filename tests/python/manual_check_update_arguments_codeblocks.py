@@ -1,36 +1,38 @@
 from __future__ import annotations
 
 import importlib.util
+import os, sys
 import tempfile
 import types
 from pathlib import Path
-from typing import Optional
 
 
 def _load_module() -> types.ModuleType:
     # Load the tool module by path so the script is self-contained.
-    module_path: Optional[Path] = None
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / "script" / "code_generation" / "python_tools" / "update_arguments_codeblocks.py"
-        if candidate.exists():
-            module_path = candidate
-            break
-    if module_path is None:
-        raise FileNotFoundError("Could not locate update_arguments_codeblocks.py")
+    this_script_path = os.path.dirname(Path(__file__).resolve())
+    
+    # Construct relative path to the target module
+    target_module_path = Path(this_script_path) / ".." / ".." / "python" / "update_arguments_codeblocks.py"
 
-    spec = importlib.util.spec_from_file_location("update_arguments_codeblocks", module_path)
+    # Assert the target module exists
+    if not target_module_path.exists():
+        raise FileNotFoundError(f"Could not locate {target_module_path}")
+
+    spec = importlib.util.spec_from_file_location(
+        "update_arguments_codeblocks", target_module_path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
+    
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
-UACB = _load_module()
+module_under_test = _load_module()
 
-
+# Helper function to print banners for clarity in output.
 def _print_banner(title: str) -> None:
     print("=" * 10 + f" {title} " + "=" * 10)
-
 
 def main() -> int:
     # Step 1: define representative MATLAB content for manual inspection.
@@ -56,12 +58,12 @@ def main() -> int:
         print(path.read_text(encoding="utf-8"))
 
         # Step 4: disable arguments blocks and show the updated file.
-        UACB._process_file(path, mode="disable", do_check=True, dry_run=False, backup=False)
+        module_under_test._process_file(path, mode="disable", do_check=True, dry_run=False, backup=False)
         _print_banner("DISABLED")
         print(path.read_text(encoding="utf-8"))
 
         # Step 5: re-enable arguments blocks and show the restored file.
-        UACB._process_file(path, mode="enable", do_check=True, dry_run=False, backup=False)
+        module_under_test._process_file(path, mode="enable", do_check=True, dry_run=False, backup=False)
         _print_banner("REENABLED")
         print(path.read_text(encoding="utf-8"))
 
