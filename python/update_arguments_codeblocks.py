@@ -23,7 +23,7 @@ Notes:
 from __future__ import annotations
 
 import argparse
-import dataclasses
+from dataclasses import dataclass
 import os
 import re
 import sys
@@ -230,7 +230,7 @@ def _parse_signature_inputs(sig: str) -> list[str]:
 _ARGS_START_RE = re.compile(r"^\s*arguments\b(\s*\(.*\))?\s*$")
 _END_LINE_RE = re.compile(r"^\s*end\b(\s*%.*)?\s*$")
 
-@dataclasses.dataclass
+@dataclass
 class ArgumentsBlockInfo:
     """Metadata for a MATLAB arguments block.
 
@@ -482,7 +482,7 @@ def _collect_arguments_entries(lines: list[str], b: ArgumentsBlockInfo) -> tuple
 
 # ----------------------- main processing -----------------------
 
-@dataclasses.dataclass
+@dataclass
 class FileReport:
     """Summary of processing results for a file.
 
