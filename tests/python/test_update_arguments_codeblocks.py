@@ -29,7 +29,6 @@ def _load_module() -> types.ModuleType:
     spec.loader.exec_module(module)
     return module
 
-
 module_under_test = _load_module()
 
 
@@ -133,3 +132,168 @@ def test_check_warns_on_signature_mismatch(tmp_path: Path) -> None:
     # Assert: mismatch produces a warning.
     assert rep.warnings
     assert "Signature inputs=" in rep.warnings[0]
+
+
+def test_parse_signature_inputs_multiline_with_varargin() -> None:
+    # Arrange: multiline signature with outputs and varargin in inputs.
+    signature_lines = [
+        "function [out1, out2] = foo( ...\n",
+        "    firstArg, secondArg, ...\n",
+        "    varargin)\n",
+    ]
+
+    # Act: collect and parse the signature.
+    signature_line, _ = module_under_test._collect_function_signature(signature_lines, 0)
+    inputs = module_under_test._parse_signature_inputs(signature_line)
+
+    # Assert: inputs preserve order and include varargin.
+    assert inputs == ["firstArg", "secondArg", "varargin"]
+
+
+def test_find_arguments_blocks_with_end_comment() -> None:
+    # Arrange: arguments block where the end line has a trailing comment.
+    lines = [
+        "function y = foo(x)\n",
+        "arguments\n",
+        "  x (1,1) double\n",
+        "end % arguments block end\n",
+        "y = x;\n",
+        "end\n",
+    ]
+
+    # Act: find arguments blocks.
+    blocks = module_under_test._find_arguments_blocks(lines)
+
+    # Assert: single block found and ends on the commented end line.
+    assert len(blocks) == 1
+    assert lines[blocks[0].end_line].startswith("end %")
+
+
+def test_disable_enable_multiple_argument_blocks_in_one_function(tmp_path: Path) -> None:
+    # Arrange: a single function containing multiple arguments blocks.
+    content = (
+        "function y = foo(x, y)\n"
+        "arguments\n"
+        "  x (1,1) double\n"
+        "end\n"
+        "arguments\n"
+        "  y (1,1) double\n"
+        "end\n"
+        "y = x + y;\n"
+        "end\n"
+    )
+    path = _write_tmp(tmp_path, "foo.m", content)
+
+    # Act: disable blocks.
+    report = module_under_test._process_file(path, mode="disable", do_check=False, dry_run=False, backup=False)
+
+    # Assert: both blocks detected and modified.
+    assert report.blocks_found == 2
+    assert report.blocks_modified == 2
+    disabled = path.read_text(encoding="utf-8")
+    assert disabled.count(module_under_test.MARKER) >= 4
+
+    # Act: re-enable and verify round-trip.
+    module_under_test._process_file(path, mode="enable", do_check=False, dry_run=False, backup=False)
+    restored = path.read_text(encoding="utf-8")
+    assert restored == content
+
+
+def test_parse_signature_inputs_with_codegen_comment() -> None:
+    # Arrange: multiline signature with inline %#codegen comment.
+    signature_lines = [
+        "function [dflowSTM] = getDiscreteTimeSTM(dDynMatrix, ...\n",
+        "                                         dDynMatrixNext, ...\n",
+        "                                         dDeltaTstep, ...\n",
+        "                                         ui16StateSize)%#codegen\n",
+    ]
+
+    # Act: collect and parse the signature.
+    signature_line, _ = module_under_test._collect_function_signature(signature_lines, 0)
+    inputs = module_under_test._parse_signature_inputs(signature_line)
+
+    # Assert: inputs are detected even with the trailing inline comment.
+    assert inputs == ["dDynMatrix", "dDynMatrixNext", "dDeltaTstep", "ui16StateSize"]
+
+
+def test_disable_enable_with_repeating_arguments_block(tmp_path: Path) -> None:
+    # Arrange: arguments blocks including a (Repeating) section, like input_reading.m.
+    content = (
+        "function out = input_reading(sim_name, path_input, varargin, options, additional_inputs)\n"
+        "arguments\n"
+        "  sim_name\n"
+        "  path_input\n"
+        "end\n"
+        "arguments (Repeating)\n"
+        "  varargin\n"
+        "end\n"
+        "arguments\n"
+        "  options.shape_models_path (1,:) string\n"
+        "  options.charModelName (1,:) char = 'CUBORG'\n"
+        "  additional_inputs.flag = 0;\n"
+        "  additional_inputs.q_SC_last = [0 0 0 0]';\n"
+        "end\n"
+        "out = [];\n"
+        "end\n"
+    )
+    path = _write_tmp(tmp_path, "input_reading.m", content)
+
+    # Act: disable all arguments blocks.
+    report = module_under_test._process_file(path, mode="disable", do_check=False, dry_run=False, backup=False)
+
+    # Assert: all blocks are detected and modified.
+    assert report.blocks_found == 3
+    assert report.blocks_modified == 3
+
+    # Act: re-enable and verify round-trip.
+    module_under_test._process_file(path, mode="enable", do_check=False, dry_run=False, backup=False)
+    restored = path.read_text(encoding="utf-8")
+    assert restored == content
+
+
+def test_collect_arguments_entries_groups_keyword_roots() -> None:
+    # Arrange: a block with repeated keyword roots (options, additional_inputs).
+    lines = [
+        "function out = input_reading(options, additional_inputs)\n",
+        "arguments\n",
+        "  options.shape_models_path (1,:) string\n",
+        "  options.charModelName (1,:) char = 'CUBORG'\n",
+        "  additional_inputs.flag = 0;\n",
+        "  additional_inputs.q_SC_last = [0 0 0 0]';\n",
+        "end\n",
+        "out = [];\n",
+        "end\n",
+    ]
+    blocks = module_under_test._find_arguments_blocks(lines)
+    assert len(blocks) == 1
+
+    # Act: count positional and keyword groups.
+    positional, keyword_groups, effective = module_under_test._collect_arguments_entries(lines, blocks[0])
+
+    # Assert: positional is zero, and keyword roots are grouped by root name.
+    assert positional == 0
+    assert keyword_groups == 2
+    assert effective == 2
+
+
+def test_find_arguments_blocks_with_compact_input_output_tags() -> None:
+    # Arrange: arguments blocks using compact "(Input)/(Output)" syntax.
+    lines = [
+        "function [out] = demo(in)\n",
+        "arguments(Input)\n",
+        "  in (1,1) double\n",
+        "end\n",
+        "arguments(Output)\n",
+        "  out (1,1) double\n",
+        "end\n",
+        "out = in;\n",
+        "end\n",
+    ]
+
+    # Act: find arguments blocks.
+    blocks = module_under_test._find_arguments_blocks(lines)
+
+    # Assert: both blocks are detected in order.
+    assert len(blocks) == 2
+    assert lines[blocks[0].start_line].startswith("arguments(Input)")
+    assert lines[blocks[1].start_line].startswith("arguments(Output)")
