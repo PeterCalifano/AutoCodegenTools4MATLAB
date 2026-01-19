@@ -187,7 +187,7 @@ for ui32Idx = 1:numel(cellFieldNames)
         [~, ~, varVal] = DetectNonEmptyInStructArray(varStruct, charField, varVal, kwargs);
     end
 
-    if isstruct(varVal) || isobject(varVal)
+    if isstruct(varVal) || (isobject(varVal) && not(isstring(varVal))) 
 
         charSubBus = sprintf('%s_%s', charBusName, charField);
 
@@ -252,7 +252,7 @@ for ui32Idx = 1:numel(cellFieldNames)
         fprintf(i32Fid, 'elem = Simulink.BusElement;\n');
         fprintf(i32Fid, 'elem.Name = ''%s'';\n', charField);
 
-        if (isstruct(varVal) || isobject(varVal))
+        if (isstruct(varVal) || (isobject(varVal) && not(isstring(varVal)) ) )
             charSubBus = sprintf('%s_%s', charBusName, charField);
             fprintf(i32Fid, 'elem.DataType = ''Bus: bus_%s'';\n', charSubBus);
             fprintf(i32Fid, 'elem.Dimensions = %s;\n', num2str(numel(varVal)));
@@ -320,7 +320,7 @@ if kwargs.bStoreDefaultValues
                     % Get value from the corresponding parent struct
                     varVal = kwargs.strParentStruct(idParent).(charCurrentStructFieldName)(idVal).(charField);
                     
-                    if isstruct(varVal) || isobject(varVal)
+                    if isstruct(varVal) || (isobject(varVal) && not(isstring(varVal)))
                         charSubBus = sprintf('%s_%s', charBusName, charField);
                         if isscalar(varVal)
                             fprintf(i32Fid, '\tstrDefault(%d,%d).%s = default_%s(%d,%d);\n', ...
@@ -368,7 +368,7 @@ if kwargs.bStoreDefaultValues
         
             if not(isempty(varVal))
 
-                if isstruct(varVal) || isobject(varVal)
+                if isstruct(varVal) || (isobject(varVal) && not(isstring(varVal)))
                     charSubBus = sprintf('%s_%s', charBusName, charField);
 
                     if isscalar(varVal)
