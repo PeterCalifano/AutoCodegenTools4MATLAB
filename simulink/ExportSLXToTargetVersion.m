@@ -49,6 +49,14 @@ try
         charSlxModelNameTarget = strcat(charSlxModelNameSrc, "_" + charTargetVerMATLAB + ".slx");
     end
 
+    if ~isfolder(charExportPath)
+        mkdir(charExportPath);
+    end
+
+    % Compose target and src files
+    charSlxModelSrcPath    = which(charSlxModelNameSrc);
+    charSlxModelTargetPath = fullfile(charExportPath, strcat(charSlxModelNameTarget, '.slx') );
+
     % Load system if not already loaded
     if ~bdIsLoaded(charSlxModelNameSrc)
         fprintf("Model not loaded. Loading system %s...\n", charSlxModelNameSrc);
@@ -60,7 +68,7 @@ try
         charSlxModelNameSrc, charTargetVerMATLAB, charSlxModelNameTarget);
 
     % Export to target version
-    save_system(charSlxModelNameSrc, charSlxModelNameTarget, "ExportToVersion", charTargetVerMATLAB);
+    save_system(charSlxModelNameSrc, charSlxModelTargetPath, "ExportToVersion", charTargetVerMATLAB);
     
     if bCloseSystemAfterExport == true
         fprintf("Closing model %s...\n", charSlxModelNameSrc);
@@ -68,16 +76,14 @@ try
         close_system(charSlxModelNameSrc, 0);
     end
 
-    if not(bUseDestructiveModelReplace)
-        % Move exported file to target folder
-        if ~isfolder(charExportPath)
-            mkdir(charExportPath);
-        end
-        
-        movefile(charSlxModelNameTarget, fullfile(charExportPath, charSlxModelNameTarget));
-    else
+    if bUseDestructiveModelReplace
+        % Replace existing source model as well
         warning("Destructive model replace is enabled. Export path ignored. The exported model will overwrite the source model.");
-        movefile(charSlxModelNameTarget, charSlxModelNameSrc);
+        if isfile(charSlxModelSrcPath)
+            warning('Existing file with same target name %s found. Deleting it...', charSlxModelNameTarget);
+        end
+
+        copyfile(charSlxModelTargetPath, charSlxModelSrcPath);
     end
 
     bSuccessfulExport = true;
