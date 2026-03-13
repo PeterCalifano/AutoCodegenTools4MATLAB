@@ -37,8 +37,12 @@ end
 % 14-05-2025    Pietro Califano                     Upgrade to support in-place definition of buses and
 %                                                   examples, casting of default values, better header file. 
 % 16-05-2025    Pietro Califano                     [MAJOR] Fix in-place definition and assignment of multi-nested
-%                                                   buses (top must assign all buses to caller). Extend to fully 
-%                                                   support struct arrays with defaults
+%                                                   buses (top must assign all buses to caller).
+% 06-10-2025    Pietro Califano                     Extend to support struct arrays in nested fields with
+%                                                   default values;
+% 25-11-2025    Pietro Califano                     Extend to fully support struct arrays with defaults in
+%                                                   at least two nesting levels (struct arrays within struct
+%                                                   arrays). Testes with two levels.
 % -------------------------------------------------------------------------------------------------------------
 %% DEPENDENCIES
 % [-]
@@ -183,7 +187,7 @@ for ui32Idx = 1:numel(cellFieldNames)
         [~, ~, varVal] = DetectNonEmptyInStructArray(varStruct, charField, varVal, kwargs);
     end
 
-    if isstruct(varVal) || isobject(varVal)
+    if isstruct(varVal) || (isobject(varVal) && not(isstring(varVal))) 
 
         charSubBus = sprintf('%s_%s', charBusName, charField);
 
@@ -248,7 +252,7 @@ for ui32Idx = 1:numel(cellFieldNames)
         fprintf(i32Fid, 'elem = Simulink.BusElement;\n');
         fprintf(i32Fid, 'elem.Name = ''%s'';\n', charField);
 
-        if (isstruct(varVal) || isobject(varVal))
+        if (isstruct(varVal) || (isobject(varVal) && not(isstring(varVal)) ) )
             charSubBus = sprintf('%s_%s', charBusName, charField);
             fprintf(i32Fid, 'elem.DataType = ''Bus: bus_%s'';\n', charSubBus);
             fprintf(i32Fid, 'elem.Dimensions = %s;\n', num2str(numel(varVal)));
@@ -287,17 +291,63 @@ if kwargs.bStoreDefaultValues
     fprintf(i32Fid, 'try\n');
     fprintf(i32Fid, '\tstrDefault = struct();\n');
 
+    bDidPrealloc2D = false;  % Flag to avoid multiple prealloc of 2D struct arrays
     for ui32Idx = 1:numel(cellFieldNames)
         
         charField = cellFieldNames{ui32Idx};
     
         % Check if parent is an array
-        if isfield(kwargs, "strParentStruct") || numel(varStruct) > 1
-            if isfield(kwargs, "strParentStruct")
-                ui32ArraySize = length(kwargs.strParentStruct);
-            else
-                ui32ArraySize = numel(varStruct);
+        bIsParentStructAnArray = isfield(kwargs, "strParentStruct") && numel(kwargs.strParentStruct) > 1;
+        bIsCurrentStructAnArray = numel(varStruct) > 1;
+
+        if bIsParentStructAnArray && bIsCurrentStructAnArray
+
+            ui32ParentSize      = numel(kwargs.strParentStruct);
+            ui32StructArraySize = numel(varStruct);
+            ui32ArraySize       = ui32ParentSize;
+
+            if not(bDidPrealloc2D)
+                fprintf(i32Fid, '\tstrDefault(%d, %d) = struct();\n', ui32ParentSize, ui32StructArraySize);
+                bDidPrealloc2D = true;
             end
+            charCurrentStructFieldName = split(charBusName, '_');
+            charCurrentStructFieldName = charCurrentStructFieldName(end);
+
+            % Write default data to file, accounting for parent and current struct arrays
+            for idParent = 1:ui32ParentSize
+                for idVal = 1:ui32StructArraySize
+
+                    % Get value from the corresponding parent struct
+                    varVal = kwargs.strParentStruct(idParent).(charCurrentStructFieldName)(idVal).(charField);
+                    
+                    if isstruct(varVal) || (isobject(varVal) && not(isstring(varVal)))
+                        charSubBus = sprintf('%s_%s', charBusName, charField);
+                        if isscalar(varVal)
+                            fprintf(i32Fid, '\tstrDefault(%d,%d).%s = default_%s(%d,%d);\n', ...
+                                idParent, idVal, charField, charSubBus, idParent, idVal);
+                        else
+                            for idSub = 1:numel(varVal)
+                                fprintf(i32Fid, '\tstrDefault(%d,%d).%s(%d) = default_%s(%d,%d);\n', ...
+                                    idParent, idVal, charField, idSub, charSubBus, idParent, idSub);
+                            end
+                        end
+                    else
+                        charDatatype = class(varVal);
+                        charValStr   = FormatValue(varVal);
+                        fprintf(i32Fid, '\tstrDefault(%d,%d).%s = cast(%s, ''%s'');\n', ...
+                            idParent, idVal, charField, charValStr, charDatatype);
+                    end
+                end
+            end
+            
+            continue; % Skip rest of the code
+
+        elseif numel(varStruct) > 1
+            %if isfield(kwargs, "strParentStruct")
+            %    ui32ArraySize = length(kwargs.strParentStruct);
+            %else
+            ui32ArraySize = numel(varStruct);
+            %end
         else
             ui32ArraySize = 1;
             varVal    = varStruct.(charField);
@@ -318,16 +368,31 @@ if kwargs.bStoreDefaultValues
         
             if not(isempty(varVal))
 
-                if isstruct(varVal) || isobject(varVal)
+                if isstruct(varVal) || (isobject(varVal) && not(isstring(varVal)))
                     charSubBus = sprintf('%s_%s', charBusName, charField);
 
                     if isscalar(varVal)
-                        fprintf(i32Fid, '\tstrDefault(%d).%s = default_%s;\n', idArray, charField, charSubBus);
-
+                        if bIsParentStructAnArray
+                            fprintf(i32Fid, '\tstrDefault(%d).%s = default_%s(%d);\n', ...
+                                idArray, charField, charSubBus, idArray);
+                        else
+                            fprintf(i32Fid, '\tstrDefault(%d).%s = default_%s;\n', ...
+                                idArray, charField, charSubBus);
+                        end
+                        
                     elseif numel(varVal) > 1
+
                         % Handle struct arrays defaults
-                        for idVal = 1:numel(varVal)
-                            fprintf(i32Fid, '\tstrDefault(%d).%s(%d) = default_%s;\n', idArray, charField, idVal, sprintf('%s(%d)', charSubBus, idVal) );
+                        for idVal = 1:numel(varVal) 
+                            %fprintf(i32Fid, '\tstrDefault(%d).%s(%d) = default_%s;\n', ...
+                            %    idArray, charField, idVal, sprintf('%s(%d)', charSubBus, idVal));
+                            if bIsParentStructAnArray || bIsCurrentStructAnArray
+                                fprintf(i32Fid, '\tstrDefault(%d).%s(%d) = default_%s(%d,%d);\n', ...
+                                    idArray, charField, idVal, charSubBus, idArray, idVal);
+                            else
+                                fprintf(i32Fid, '\tstrDefault(%d).%s(%d) = default_%s(%d);\n', ...
+                                    idArray, charField, idVal, charSubBus, idVal);
+                            end
                         end
 
                     else
@@ -350,7 +415,7 @@ if kwargs.bStoreDefaultValues
 
     % Catch
     fprintf(i32Fid, 'catch ME\n');
-    fprintf(i32Fid, '\twarning("Automatic default assignment failed due to error: %s", ME.message);\n', "%s");
+    fprintf(i32Fid, '\twarning("Automatic default assignment failed due to error: %s", string(ME.message));\n', "%s");
     fprintf(i32Fid, '\n');
     fprintf(i32Fid, 'end\n');
 
