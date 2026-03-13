@@ -38,11 +38,14 @@ def main() -> int:
     # Step 1: define representative MATLAB content for manual inspection.
     content = (
         "function out = demo(a, b)\n"
-        "arguments\n"
+        "arguments (Inputs)\n"
         "  a (1,1) double\n"
         "  % already commented line\n"
         "  b (1,1) double = 3 % inline comment\n"
         "  opts.alpha (1,1) double = 1\n"
+        "end\n"
+        "arguments (Outputs)\n"
+        "  out (1,1) double\n"
         "end\n"
         "out = a + b;\n"
         "end\n"
