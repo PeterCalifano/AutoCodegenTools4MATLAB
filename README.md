@@ -1,2 +1,3 @@
 # AutoCodegenTools4MATLAB
-Repository containing tools for faster and automatic use of MATLAB code generation
+A library containing tools for faster, more convenient and automated use of MATLAB/Simulink code generation process, with Interface Control Documents automatic generation.
+NOTE: Branch "master" is used as mirror branch. Original repository at: https://github.com/PeterCalifano/AutoCodegenTools4MATLAB/

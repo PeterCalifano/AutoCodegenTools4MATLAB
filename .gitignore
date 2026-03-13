@@ -1,3 +1,13 @@
+# MATLAB
+*cache*
+**/*slprj
+*.mexa64
+*.xslx
+*.slxc
+*.asv
+**/BusDef_*
+*pdf
+
 # Prerequisites
 *.d
 
